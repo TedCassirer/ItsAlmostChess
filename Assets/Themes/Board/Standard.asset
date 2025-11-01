@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: adb429420e7a4351851d6136a1d19082, type: 3}
+  m_Name: Standard
+  m_EditorClassIdentifier: Assembly-CSharp::UI.BoardTheme
+  lightSquares:
+    normal: {r: 0.94, g: 0.846, b: 0.752, a: 0}
+    legal: {r: 0, g: 0, b: 0, a: 0}
+    selected: {r: 0, g: 0, b: 0, a: 0}
+    moveFromHighlight: {r: 0, g: 0, b: 0, a: 0}
+    moveToHighlight: {r: 0, g: 0, b: 0, a: 0}
+  darkSquares:
+    normal: {r: 0.66, g: 0.47520003, b: 0.396, a: 0}
+    legal: {r: 0, g: 0, b: 0, a: 0}
+    selected: {r: 0, g: 0, b: 0, a: 0}
+    moveFromHighlight: {r: 0, g: 0, b: 0, a: 0}
+    moveToHighlight: {r: 0, g: 0, b: 0, a: 0}
