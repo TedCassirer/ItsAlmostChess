@@ -26,13 +26,19 @@ namespace Core {
             Debug.Log(_squares);
         }
 
+        public int GetPiece(Coord coord) {
+            return GetPiece(coord.file, coord.rank);
+        }
+
         public int GetPiece(int file, int rank) {
             return _squares[file, rank];
         }
 
         public bool MakeMove(Move move) {
-            if (move.IsInValid) return false;
-            Debug.Log("Making move");
+            var moveGenerator = new MoveGenerator(this);
+            var isValid = moveGenerator.ValidMovesForSquare(move.from).Exists(m => m.Equals(move));
+
+            if (!isValid) return false;
             _squares[move.to.file, move.to.rank] = _squares[move.from.file, move.from.rank];
             _squares[move.from.file, move.from.rank] = Piece.None;
 

@@ -23,17 +23,13 @@ namespace Core {
         }
 
         private void HandleInput() {
-            if (Mouse.current.leftButton.wasReleasedThisFrame) {
-                HandleMouseUp();
-            }
+            if (Mouse.current.leftButton.wasReleasedThisFrame) HandleMouseUp();
 
             if (_boardUI.TryGetSquareUnderMouse(out var targetSquare)) {
-                if (Mouse.current.leftButton.wasPressedThisFrame) {
-                    HandleSelectSquare(targetSquare);
-                }
-                if (Mouse.current.rightButton.wasPressedThisFrame) {
-                    _boardUI.SelectSquare(targetSquare);
-                }
+                if (Mouse.current.leftButton.wasPressedThisFrame) HandleSelectSquare(targetSquare);
+
+                if (Mouse.current.rightButton.wasPressedThisFrame)
+                    _boardUI.GetSquare(targetSquare).SetHighlighted(true);
             }
         }
 
@@ -43,9 +39,8 @@ namespace Core {
             if (piece != Piece.None) {
                 _selectedPieceSquare = square;
                 _selectedPiece = piece;
-                if (Piece.IsColor(piece, _color)) {
+                if (Piece.IsColor(piece, _board.IsWhitesTurn ? Piece.White : Piece.Black))
                     _boardUI.HighlightValidMoves(_board, _selectedPieceSquare);
-                }
 
                 _isDraggingPiece = true;
             }
@@ -56,8 +51,9 @@ namespace Core {
                 _boardUI.ReleasePiece(_selectedPieceSquare);
                 _isDraggingPiece = false;
 
-                if (Piece.IsColor(_selectedPiece, _color) && _boardUI.TryGetSquareUnderMouse(out var targetSquare)) {
-                    var move = new Move(_selectedPieceSquare, targetSquare);
+                if (_boardUI.TryGetSquareUnderMouse(out var targetSquare)) {
+                    var isCapture = Piece.IsOppositeColor(_selectedPiece, _board.GetPiece(targetSquare));
+                    var move = new Move(_selectedPieceSquare, targetSquare, isCapture);
                     if (_board.MakeMove(move)) {
                         _boardUI.ResetSquares();
                         _boardUI.UpdatePosition(_board);

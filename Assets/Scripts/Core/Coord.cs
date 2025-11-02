@@ -1,4 +1,5 @@
 ﻿using System;
+using Utils;
 
 namespace Core {
     public struct Coord : IComparable<Coord> {
@@ -19,7 +20,7 @@ namespace Core {
         }
 
         public override string ToString() {
-            return $"Square({file}, {rank})";
+            return BoardUtils.SquareName(file, rank);
         }
     }
 }

@@ -10,8 +10,6 @@
             this.isCapture = isCapture;
         }
 
-        public bool IsInValid => from.file == to.file && from.rank == to.rank;
-
         public override string ToString() {
             return $"Move({from}, {to})";
         }

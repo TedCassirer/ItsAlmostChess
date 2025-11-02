@@ -17,7 +17,7 @@ namespace UI {
             public Sprite pawn, knight, bishop, rook, queen, king;
 
             public Sprite this[int i] {
-                get { return new Sprite[] { null, pawn, rook, knight, bishop, queen, king }[i]; }
+                get { return new Sprite[] { null, pawn, knight, bishop, rook, queen, king }[i]; }
             }
         }
     }

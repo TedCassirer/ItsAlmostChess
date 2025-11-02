@@ -27,6 +27,10 @@ namespace Core {
             return (piece & color) == color;
         }
 
+        public static bool IsOppositeColor(int p1, int p2) {
+            return Color(p1) != Color(p2) && p1 != 0 && p2 != 0;
+        }
+
         public static int Type(int piece) {
             return piece & pieceMask;
         }
