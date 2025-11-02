@@ -17,6 +17,7 @@ public class BoardUI : MonoBehaviour {
     private Camera _cam;
 
 
+
     private void Awake() {
         Debug.Log("Awake");
         CreateBoardUI();
@@ -53,12 +54,13 @@ public class BoardUI : MonoBehaviour {
     }
 
     public void Update() {
+        
     }
 
     public void UpdatePosition(Board board) {
         for (var rank = 0; rank < 8; rank++)
         for (var file = 0; file < 8; file++) {
-            var piece = board.GetSquare(file, rank);
+            var piece = board.GetPiece(file, rank);
             _squarePieceRenderers[file, rank].sprite = pieceTheme.GetPieceSprite(piece);
         }
     }
@@ -72,6 +74,7 @@ public class BoardUI : MonoBehaviour {
                 ? boardTheme.lightSquares.normal
                 : boardTheme.darkSquares.normal;
             squareRenderer.material.color = color;
+            squareRenderer.transform.DetachChildren();
         }
     }
 
@@ -84,9 +87,21 @@ public class BoardUI : MonoBehaviour {
         return file is >= 0 and < 8 && rank is >= 0 and < 8;
     }
 
-    public void HighlightSquare(Coord coord) {
-        var squareRenderer = _squareRenderers[coord.file, coord.rank];
-        squareRenderer.material.color = boardTheme.Selected(coord);
+
+    public void SelectSquare(Coord square) {
+        var squareRenderer = _squareRenderers[square.file, square.rank];
+        squareRenderer.material.color = boardTheme.Selected(square);
+    }
+
+    public void DeselectSquares() {
+        ResetSquares();
+    }
+
+    public void HighlightValidMoves(Board board, Coord square) {
+        MoveGenerator generator = new MoveGenerator(board);
+        foreach (var move in generator.ValidMovesForSquare(square)) {
+            
+        }
     }
 
     public void DragPiece(Coord square) {

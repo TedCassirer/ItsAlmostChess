@@ -1,43 +1,68 @@
-﻿using UnityEngine;
+﻿using UnityEditor;
+using UnityEngine;
 using UnityEngine.InputSystem;
 
 namespace Core {
     public class Human {
         private readonly BoardUI _boardUI;
         private readonly Board _board;
-        private Coord _selectedSquare;
+        private Coord _selectedPieceSquare;
+        private int _selectedPiece;
         private bool _isDraggingPiece;
+        private int _color;
 
-        public Human(Board board, BoardUI boardUI) {
+        public Human(Board board, BoardUI boardUI, int color) {
             _board = board;
             _boardUI = boardUI;
+            _color = color;
         }
 
         public void Update() {
             HandleInput();
-            if (_isDraggingPiece) _boardUI.DragPiece(_selectedSquare);
+            if (_isDraggingPiece) _boardUI.DragPiece(_selectedPieceSquare);
         }
 
         private void HandleInput() {
+            if (Mouse.current.leftButton.wasReleasedThisFrame) {
+                HandleMouseUp();
+            }
+
             if (_boardUI.TryGetSquareUnderMouse(out var targetSquare)) {
                 if (Mouse.current.leftButton.wasPressedThisFrame) {
-                    var piece = _board.GetSquare(targetSquare.file, targetSquare.rank);
-                    if (piece != Piece.None) {
-                        _selectedSquare = targetSquare;
-                        _isDraggingPiece = true;
-                    }
+                    HandleSelectSquare(targetSquare);
+                }
+                if (Mouse.current.rightButton.wasPressedThisFrame) {
+                    _boardUI.SelectSquare(targetSquare);
+                }
+            }
+        }
+
+        private void HandleSelectSquare(Coord square) {
+            _boardUI.ResetSquares();
+            var piece = _board.GetPiece(square.file, square.rank);
+            if (piece != Piece.None) {
+                _selectedPieceSquare = square;
+                _selectedPiece = piece;
+                if (Piece.IsColor(piece, _color)) {
+                    _boardUI.HighlightValidMoves(_board, _selectedPieceSquare);
                 }
 
-                if (Mouse.current.leftButton.wasReleasedThisFrame)
-                    if (_isDraggingPiece) {
-                        _boardUI.ReleasePiece(_selectedSquare);
-                        _isDraggingPiece = false;
-                        var move = new Move(_selectedSquare, targetSquare);
-                        if (_board.MakeMove(move)) {
-                            _boardUI.ResetSquares();
-                            _boardUI.UpdatePosition(_board);
-                        }
+                _isDraggingPiece = true;
+            }
+        }
+
+        private void HandleMouseUp() {
+            if (_isDraggingPiece) {
+                _boardUI.ReleasePiece(_selectedPieceSquare);
+                _isDraggingPiece = false;
+
+                if (Piece.IsColor(_selectedPiece, _color) && _boardUI.TryGetSquareUnderMouse(out var targetSquare)) {
+                    var move = new Move(_selectedPieceSquare, targetSquare);
+                    if (_board.MakeMove(move)) {
+                        _boardUI.ResetSquares();
+                        _boardUI.UpdatePosition(_board);
                     }
+                }
             }
         }
     }

@@ -15,7 +15,7 @@ public class GameManager : MonoBehaviour {
         _board.LoadFENPosition(StartingPosition);
         _boardUI.UpdatePosition(_board);
 
-        _human = new Human(_board, _boardUI);
+        _human = new Human(_board, _boardUI, Piece.White);
     }
 
     private void Update() {

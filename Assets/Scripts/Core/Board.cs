@@ -3,6 +3,7 @@
 namespace Core {
     public class Board {
         private int[,] _squares = new int[8, 8];
+        public bool IsWhitesTurn { get; private set; } = true;
 
 
         public void LoadFENPosition(string fen) {
@@ -25,7 +26,7 @@ namespace Core {
             Debug.Log(_squares);
         }
 
-        public int GetSquare(int file, int rank) {
+        public int GetPiece(int file, int rank) {
             return _squares[file, rank];
         }
 
@@ -34,6 +35,8 @@ namespace Core {
             Debug.Log("Making move");
             _squares[move.to.file, move.to.rank] = _squares[move.from.file, move.from.rank];
             _squares[move.from.file, move.from.rank] = Piece.None;
+
+            IsWhitesTurn ^= true;
             return true;
         }
     }
