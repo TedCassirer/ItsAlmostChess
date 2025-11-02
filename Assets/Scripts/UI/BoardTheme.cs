@@ -1,9 +1,9 @@
-﻿using UnityEngine;
+﻿using Core;
+using UnityEngine;
 
 namespace UI {
-    [CreateAssetMenu (menuName = "Theme/Board")]
+    [CreateAssetMenu(menuName = "Theme/Board")]
     public class BoardTheme : ScriptableObject {
-
         public SquareColours lightSquares;
         public SquareColours darkSquares;
 
@@ -14,6 +14,14 @@ namespace UI {
             public Color selected;
             public Color moveFromHighlight;
             public Color moveToHighlight;
+        }
+
+        public Color Normal(Coord coord) {
+            return coord.IsLightSquare() ? lightSquares.normal : darkSquares.normal;
+        }
+
+        public Color Selected(Coord coord) {
+            return coord.IsLightSquare() ? lightSquares.selected : darkSquares.selected;
         }
     }
 }

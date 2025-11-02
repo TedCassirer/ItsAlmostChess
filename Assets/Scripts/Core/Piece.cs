@@ -18,8 +18,7 @@ namespace Core {
         private const int blackMask = 0b10000;
         private const int colorMask = whiteMask | blackMask;
 
-        
-                
+
         public static int Color(int piece) {
             return piece & colorMask;
         }
@@ -33,7 +32,7 @@ namespace Core {
         }
 
         public static int FromFENSymbol(char symbol) {
-            int colorMask = char.IsUpper(symbol) ? whiteMask : blackMask;
+            var colorMask = char.IsUpper(symbol) ? whiteMask : blackMask;
             switch (char.ToLower(symbol)) {
                 case 'p':
                     return Pawn | colorMask;

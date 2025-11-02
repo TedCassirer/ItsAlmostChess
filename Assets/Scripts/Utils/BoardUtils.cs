@@ -3,6 +3,7 @@
 namespace Utils {
     public static class BoardUtils {
         private static string[] fileNames = { "a", "b", "c", "d", "e", "f", "g", "h" };
+
         public static string SquareName(int file, int rank) {
             return fileNames[file] + (rank + 1);
         }
@@ -11,5 +12,4 @@ namespace Utils {
             return (file + rank) % 2 == 1;
         }
     }
-    
 }
