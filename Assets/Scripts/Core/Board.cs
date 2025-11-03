@@ -6,6 +6,9 @@ namespace Core {
         public bool IsWhitesTurn { get; private set; } = true;
 
 
+        public int ColorToMove => IsWhitesTurn ? Piece.White : Piece.Black;
+        public int OpponentColor => IsWhitesTurn ? Piece.Black : Piece.White;
+
         public void LoadFENPosition(string fen) {
             var rank = 7;
             var file = 0;
@@ -44,6 +47,10 @@ namespace Core {
 
             IsWhitesTurn ^= true;
             return true;
+        }
+
+        public bool IsPieceColor(Coord sq, int color) {
+            return Piece.IsColor(GetPiece(sq), color);
         }
     }
 }

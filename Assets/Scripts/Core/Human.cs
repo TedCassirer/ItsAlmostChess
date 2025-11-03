@@ -1,4 +1,5 @@
-﻿using UnityEditor;
+﻿using System.Linq;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -26,8 +27,8 @@ namespace Core {
             if (Mouse.current.leftButton.wasReleasedThisFrame) HandleMouseUp();
 
             if (_boardUI.TryGetSquareUnderMouse(out var targetSquare)) {
-                if (Mouse.current.leftButton.wasPressedThisFrame) HandleSelectSquare(targetSquare);
-
+                if (Mouse.current.leftButton.wasPressedThisFrame) 
+                    HandleSelectSquare(targetSquare);
                 if (Mouse.current.rightButton.wasPressedThisFrame)
                     _boardUI.GetSquare(targetSquare).SetHighlighted(true);
             }
@@ -39,8 +40,16 @@ namespace Core {
             if (piece != Piece.None) {
                 _selectedPieceSquare = square;
                 _selectedPiece = piece;
-                if (Piece.IsColor(piece, _board.IsWhitesTurn ? Piece.White : Piece.Black))
-                    _boardUI.HighlightValidMoves(_board, _selectedPieceSquare);
+                if (Piece.IsColor(piece, _board.IsWhitesTurn ? Piece.White : Piece.Black)) {
+                    _boardUI.HighlightValidMoves(_selectedPieceSquare);
+                }
+                else {
+                    var moveGenerator = new MoveGenerator(_board);
+                    _boardUI.HighlightThreats(square);
+                    foreach (var attackedSquare in moveGenerator.GetAttackedSquares(square)) {
+                        _boardUI.HighlightSquare(attackedSquare);
+                    }
+                }
 
                 _isDraggingPiece = true;
             }

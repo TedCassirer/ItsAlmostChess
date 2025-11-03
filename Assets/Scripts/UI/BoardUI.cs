@@ -5,6 +5,9 @@ using UnityEngine.InputSystem;
 using Utils;
 
 public class BoardUI : MonoBehaviour {
+    public bool showThreats;
+
+    private Board _board;
     private readonly BoardSquare[,] _squares = new BoardSquare[8, 8];
     private readonly SpriteRenderer[,] _squarePieceRenderers = new SpriteRenderer[8, 8];
 
@@ -50,6 +53,7 @@ public class BoardUI : MonoBehaviour {
     }
 
     public void UpdatePosition(Board board) {
+        _board = board;
         for (var rank = 0; rank < 8; rank++)
         for (var file = 0; file < 8; file++) {
             var piece = board.GetPiece(file, rank);
@@ -63,6 +67,10 @@ public class BoardUI : MonoBehaviour {
         for (var file = 0; file < 8; file++) {
             _squares[file, rank].SetHighlighted(false);
             _squares[file, rank].ShowMoveMarker(false);
+        }
+
+        if (showThreats) {
+            HighlightAllThreats();
         }
     }
 
@@ -83,9 +91,29 @@ public class BoardUI : MonoBehaviour {
         ResetSquares();
     }
 
-    public void HighlightValidMoves(Board board, Coord square) {
-        var generator = new MoveGenerator(board);
+    public void HighlightSquare(Coord square) {
+        GetSquare(square).SetHighlighted(true);
+    }
+
+    public void HighlightValidMoves(Coord square) {
+        var generator = new MoveGenerator(_board);
         foreach (var move in generator.ValidMovesForSquare(square)) GetSquare(move.to).ShowMoveMarker(true);
+    }
+
+    public void HighlightThreats(Coord square) {
+        var generator = new MoveGenerator(_board);
+        foreach (var attackedSquare in generator.GetAttackedSquares(square))
+            GetSquare(attackedSquare).SetHighlighted(true);
+    }
+
+    public void HighlightAllThreats() {
+        for (var rank = 0; rank < 8; rank++)
+        for (var file = 0; file < 8; file++) {
+            var piece = _board.GetPiece(file, rank);
+            if (Piece.IsColor(piece, _board.OpponentColor)) {
+                HighlightThreats(new Coord(file, rank));
+            }
+        }
     }
 
     public void DragPiece(Coord square) {
