@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace Core {
@@ -12,9 +13,11 @@ namespace Core {
             _board = new Board();
             _boardUI = FindFirstObjectByType<BoardUI>();
             _board.LoadFENPosition(StartingPosition);
-            _boardUI.UpdatePosition(_board);
-
             _human = new Human(_board, _boardUI, Piece.White);
+        }
+
+        public void Start() {
+            _boardUI.UpdatePosition(_board);
         }
 
         public void Update() {

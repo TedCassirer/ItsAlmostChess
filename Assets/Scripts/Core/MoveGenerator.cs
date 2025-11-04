@@ -89,7 +89,7 @@ namespace Core {
             var forward = Piece.IsColor(piece, Piece.White) ? 1 : -1;
 
             var nextRank = square.rank + forward;
-            List<Coord> attackedSquares = new List<Coord> {
+            var attackedSquares = new List<Coord> {
                 new(square.file - 1, nextRank),
                 new(square.file + 1, nextRank)
             };
@@ -117,7 +117,7 @@ namespace Core {
             };
             return targetSquares.Where(InBounds).Where(ts => {
                 var targetSquarePiece = _board.GetPiece(ts);
-                return (targetSquarePiece == Piece.None || Piece.IsOppositeColor(piece, targetSquarePiece));
+                return targetSquarePiece == Piece.None || Piece.IsOppositeColor(piece, targetSquarePiece);
             }).ToList();
         }
 
@@ -173,22 +173,19 @@ namespace Core {
 
             return targetSquares.Where(InBounds).Where(ts => {
                 var targetSquarePiece = _board.GetPiece(ts);
-                return (targetSquarePiece == Piece.None || Piece.IsOppositeColor(piece, targetSquarePiece));
+                return targetSquarePiece == Piece.None || Piece.IsOppositeColor(piece, targetSquarePiece);
             }).ToList();
         }
 
         private bool[,] CalculateAttackedSquares() {
             var attackedSquares = new bool[8, 8];
 
-            for (var file = 0; file < 8; file++) {
-                for (var rank = 0; rank < 8; rank++) {
-                    var piece = _board.GetPiece(file, rank);
-                    if (!Piece.IsColor(piece, _board.OpponentColor)) continue;
+            for (var file = 0; file < 8; file++)
+            for (var rank = 0; rank < 8; rank++) {
+                var piece = _board.GetPiece(file, rank);
+                if (!Piece.IsColor(piece, _board.OpponentColor)) continue;
 
-                    foreach (var c in GetAttackedSquares(new Coord(file, rank))) {
-                        attackedSquares[c.file, c.rank] = true;
-                    }
-                }
+                foreach (var c in GetAttackedSquares(new Coord(file, rank))) attackedSquares[c.file, c.rank] = true;
             }
 
             return attackedSquares;

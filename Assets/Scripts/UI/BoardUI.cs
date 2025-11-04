@@ -1,5 +1,6 @@
 using Core;
 using UI;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using Utils;
@@ -20,29 +21,32 @@ public class BoardUI : MonoBehaviour {
 
 
     private void Awake() {
-        CreateBoardUI();
         _cam = Camera.main;
+        CreateBoardUI();
     }
 
     private void CreateBoardUI() {
+        var boardGO = new GameObject("Chess board");
+        boardGO.transform.parent = transform;
+        boardGO.transform.position = new Vector3(-3.5f, -3.5f, 0f);
         for (var rank = 0; rank < 8; rank++)
         for (var file = 0; file < 8; file++) {
-            var squareObj = new GameObject(BoardUtils.SquareName(file, rank));
-            squareObj.transform.SetParent(transform);
-            squareObj.transform.position = new Vector3(-3.5f + file, -3.5f + rank, 0);
-            var square = squareObj.AddComponent<BoardSquare>();
+            var squareGO = new GameObject(BoardUtils.SquareName(file, rank));
+            squareGO.transform.SetParent(boardGO.transform, false);
+            squareGO.transform.localPosition = new Vector3(file, rank, 0f);
+            var square = squareGO.transform.AddComponent<BoardSquare>();
             square.Init(new Coord(file, rank), boardTheme);
-            _squares[file, rank] = square;
 
-            var pieceRenderer = new GameObject("Piece").AddComponent<SpriteRenderer>();
-            pieceRenderer.transform.parent = square.transform;
-            pieceRenderer.transform.position =
-                new Vector3(square.transform.position.x, square.transform.position.y, PieceDepth);
+            var pieceGO = new GameObject("Piece");
+            pieceGO.transform.SetParent(squareGO.transform, false);
+            var pieceRenderer = pieceGO.AddComponent<SpriteRenderer>();
+            pieceRenderer.transform.localPosition = new Vector3(0f, 0f, PieceDepth);
             pieceRenderer.transform.localScale = Vector3.one / PieceScale;
 
             _squares[file, rank] = square;
             _squarePieceRenderers[file, rank] = pieceRenderer;
         }
+
 
         ResetSquares();
 
@@ -69,9 +73,7 @@ public class BoardUI : MonoBehaviour {
             _squares[file, rank].ShowMoveMarker(false);
         }
 
-        if (showThreats) {
-            HighlightAllThreats();
-        }
+        if (showThreats) HighlightAllThreats();
     }
 
     public bool TryGetSquareUnderMouse(out Coord selectedCoord) {
@@ -110,9 +112,7 @@ public class BoardUI : MonoBehaviour {
         for (var rank = 0; rank < 8; rank++)
         for (var file = 0; file < 8; file++) {
             var piece = _board.GetPiece(file, rank);
-            if (Piece.IsColor(piece, _board.OpponentColor)) {
-                HighlightThreats(new Coord(file, rank));
-            }
+            if (Piece.IsColor(piece, _board.OpponentColor)) HighlightThreats(new Coord(file, rank));
         }
     }
 

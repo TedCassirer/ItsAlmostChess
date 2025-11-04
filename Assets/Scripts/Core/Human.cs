@@ -27,7 +27,7 @@ namespace Core {
             if (Mouse.current.leftButton.wasReleasedThisFrame) HandleMouseUp();
 
             if (_boardUI.TryGetSquareUnderMouse(out var targetSquare)) {
-                if (Mouse.current.leftButton.wasPressedThisFrame) 
+                if (Mouse.current.leftButton.wasPressedThisFrame)
                     HandleSelectSquare(targetSquare);
                 if (Mouse.current.rightButton.wasPressedThisFrame)
                     _boardUI.GetSquare(targetSquare).SetHighlighted(true);
@@ -46,9 +46,8 @@ namespace Core {
                 else {
                     var moveGenerator = new MoveGenerator(_board);
                     _boardUI.HighlightThreats(square);
-                    foreach (var attackedSquare in moveGenerator.GetAttackedSquares(square)) {
+                    foreach (var attackedSquare in moveGenerator.GetAttackedSquares(square))
                         _boardUI.HighlightSquare(attackedSquare);
-                    }
                 }
 
                 _isDraggingPiece = true;
