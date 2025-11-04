@@ -1,11 +1,8 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using NUnit.Framework;
-using UnityEngine;
+using Unity.VisualScripting;
 using Utils;
-
 
 namespace Core {
     internal struct Direction {
@@ -19,7 +16,13 @@ namespace Core {
     }
 
     public class MoveGenerator {
-        private Board _board;
+        private readonly Board _board;
+        private readonly int[,] _attackedSquares = new int[8, 8];
+        private readonly Coord _friendlyKing;
+        private readonly List<Coord> _checkingPieces = new();
+        private readonly HashSet<Coord> _squaresStoppingCheck = new();
+        private bool InCheck => _checkingPieces.Count > 0;
+        private bool InDoubleCheck => _checkingPieces.Count >= 2;
 
         private static readonly Direction[] Diagonals = {
             new(1, 1), new(1, -1), new(-1, 1), new(-1, -1)
@@ -31,25 +34,51 @@ namespace Core {
 
         public MoveGenerator(Board board) {
             _board = board;
+            _friendlyKing = _board.GetFriendlyKing();
+            CalculateAttackedData();
         }
 
         public List<Move> ValidMovesForSquare(Coord square) {
             var piece = _board.GetPiece(square);
-            if (piece == Piece.None) return new List<Move>();
+            if (piece == Piece.None || _board.IsWhitesTurn ^ Piece.IsColor(piece, Piece.White)) return Empty<Move>.list;
 
-            if (_board.IsWhitesTurn ^ Piece.IsColor(piece, Piece.White)) return new List<Move>();
+            IEnumerable<Coord> targetSquares;
+            if (InDoubleCheck) {
+                // Double check, we must move the king.
+                targetSquares = Piece.Type(piece) == Piece.King ? GenerateKingMoves(square) : Empty<Coord>.list;
+            }
+            else if (InCheck) {
+                // Only keep moves that stops check
+                if (Piece.Type(piece) == Piece.King) {
+                    targetSquares = GenerateKingMoves(square);
+                }
+                else {
+                    targetSquares = (Piece.Type(piece) switch {
+                        Piece.Pawn => GeneratePawnAttacks(square)
+                            .Where(ts => _board.IsPieceColor(ts, _board.OpponentColor))
+                            .Concat(GeneratePawnMoves(square)),
+                        Piece.Knight => GenerateKnightMoves(square),
+                        Piece.Queen => GenerateQueenMoves(square),
+                        Piece.Rook => GenerateRookMoves(square),
+                        Piece.Bishop => GenerateBishopMoves(square),
+                        _ => Empty<Coord>.list
+                    }).Where(sq => _squaresStoppingCheck.Contains(sq));
+                }
+            }
+            else {
+                targetSquares = Piece.Type(piece) switch {
+                    Piece.Pawn => GeneratePawnAttacks(square)
+                        .Where(ts => _board.IsPieceColor(ts, _board.OpponentColor))
+                        .Concat(GeneratePawnMoves(square)),
+                    Piece.Knight => GenerateKnightMoves(square),
+                    Piece.Queen => GenerateQueenMoves(square),
+                    Piece.Rook => GenerateRookMoves(square),
+                    Piece.Bishop => GenerateBishopMoves(square),
+                    Piece.King => GenerateKingMoves(square),
+                    _ => Empty<Coord>.list
+                };
+            }
 
-            var targetSquares = Piece.Type(piece) switch {
-                Piece.Pawn => GeneratePawnAttacks(square)
-                    .Where(ts => _board.IsPieceColor(ts, _board.OpponentColor))
-                    .Concat(GeneratePawnMoves(square)),
-                Piece.Knight => GenerateKnightMoves(square),
-                Piece.Queen => GenerateQueenMoves(square),
-                Piece.Rook => GenerateRookMoves(square),
-                Piece.Bishop => GenerateBishopMoves(square),
-                Piece.King => GenerateKingMoves(square),
-                _ => new List<Coord>()
-            };
             return targetSquares
                 .Where(ts => {
                     var tsPiece = _board.GetPiece(ts);
@@ -67,7 +96,7 @@ namespace Core {
             var piece = _board.GetPiece(square);
             if (Piece.Type(piece) != Piece.Pawn) throw new Exception("Not a pawn piece");
 
-            if (IsPinned(square, out var pinnedBy))
+            if (IsPinned(square, out Coord pinnedBy))
                 // TODO: Check if we can capture
                 yield break;
 
@@ -136,7 +165,7 @@ namespace Core {
             var piece = _board.GetPiece(square);
             if (Piece.Type(piece) != Piece.Rook) throw new Exception("Not a rook piece");
 
-            if (IsPinned(square, out var pinnedBy))
+            if (IsPinned(square, out Coord pinnedBy))
                 // TODO: Check if we can capture
                 return new List<Coord>();
 
@@ -171,24 +200,46 @@ namespace Core {
                 new(square.file - 1, square.rank - 1)
             };
 
-            return targetSquares.Where(InBounds).Where(ts => {
-                var targetSquarePiece = _board.GetPiece(ts);
-                return targetSquarePiece == Piece.None || Piece.IsOppositeColor(piece, targetSquarePiece);
-            }).ToList();
+
+            return targetSquares.Where(InBounds)
+                .Where(ts => {
+                    var targetSquarePiece = _board.GetPiece(ts);
+                    return targetSquarePiece == Piece.None || Piece.IsOppositeColor(piece, targetSquarePiece);
+                })
+                .Where(sq => _attackedSquares[sq.file, sq.rank] == 0)
+                .ToList();
         }
 
-        private bool[,] CalculateAttackedSquares() {
-            var attackedSquares = new bool[8, 8];
-
+        private void CalculateAttackedData() {
             for (var file = 0; file < 8; file++)
             for (var rank = 0; rank < 8; rank++) {
                 var piece = _board.GetPiece(file, rank);
                 if (!Piece.IsColor(piece, _board.OpponentColor)) continue;
-
-                foreach (var c in GetAttackedSquares(new Coord(file, rank))) attackedSquares[c.file, c.rank] = true;
+                var attackingPiece = new Coord(file, rank);
+                foreach (Coord c in GetAttackedSquares(attackingPiece)) {
+                    _attackedSquares[c.file, c.rank]++;
+                    if (c.Equals(_friendlyKing)) {
+                        _checkingPieces.Add(attackingPiece);
+                    }
+                }
             }
 
-            return attackedSquares;
+            if (InCheck && !InDoubleCheck) {
+                Coord checkingSquare = _checkingPieces[0];
+                var checkingPiece = _board.GetPiece(checkingSquare);
+                if (Piece.Type(checkingPiece) == Piece.Knight) {
+                    _squaresStoppingCheck.Add(checkingSquare);
+                    return;
+                }
+
+                var dRank = _friendlyKing.rank - checkingSquare.rank;
+                var dFile = _friendlyKing.file - checkingSquare.file;
+                var dir = new Direction(Math.Clamp(dFile, -1, 1), Math.Clamp(dRank, -1, 1));
+                foreach (Coord sq in GetMovesInDirection(checkingSquare, dir)
+                             .TakeWhile(sq => !sq.Equals(_friendlyKing))) {
+                    _squaresStoppingCheck.Add(sq);
+                }
+            }
         }
 
         public IEnumerable<Coord> GetAttackedSquares(Coord square) {

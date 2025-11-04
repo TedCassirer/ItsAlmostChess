@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 
 namespace Core {
     public class Board {
@@ -51,6 +52,19 @@ namespace Core {
 
         public bool IsPieceColor(Coord sq, int color) {
             return Piece.IsColor(GetPiece(sq), color);
+        }
+
+        public Coord GetFriendlyKing() {
+            int kingPiece = Piece.King | ColorToMove;
+            for (var file = 0; file < 8; file++) {
+                for (var rank = 0; rank < 8; rank++) {
+                    if (_squares[file, rank] == kingPiece) {
+                        return new Coord(file, rank);
+                    }
+                }
+            }
+
+            throw new Exception("Couldn't find the target king piece");
         }
     }
 }
