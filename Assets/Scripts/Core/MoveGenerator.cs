@@ -132,9 +132,17 @@ namespace Core {
 
 
         private Move CreateMove(Coord from, Coord to) {
-            bool isEnPassant = to.Equals(_board.EnPassantTarget) &&
-                               Piece.Type(_board.GetPiece(from)) == Piece.Pawn;
-            return new Move(from, to, _board.GetPiece(to), isEnPassant: isEnPassant);
+            if (to.Equals(_board.EnPassantTarget) &&
+                Piece.Type(_board.GetPiece(from)) == Piece.Pawn) {
+                return Move.EnPassantMove(from, to);
+            }
+
+            if (from.Equals(_friendlyKing) && Math.Abs(to.File - from.File) == 2) {
+                // Castling move
+                return Move.Castle(from, to);
+            }
+
+            return new Move(from, to, capturedPiece: _board.GetPiece(to));
         }
 
         private IEnumerable<Coord> GeneratePawnMoves(Coord square) {
@@ -158,16 +166,22 @@ namespace Core {
 
             if (square.File > 0) {
                 var leftAttackSquare = Coord.Create(square.File - 1, square.Rank + forward);
-                if (_board.EnPassantTarget.Equals(leftAttackSquare) ||
-                    Piece.Color(_board.GetPiece(leftAttackSquare)) == _board.OpponentColor) {
+                if (Piece.Color(_board.GetPiece(leftAttackSquare)) == _board.OpponentColor) {
+                    yield return leftAttackSquare;
+                }
+                else if (_board.EnPassantTarget.Equals(leftAttackSquare)) {
+                    // TODO: Check if this reveals a check
                     yield return leftAttackSquare;
                 }
             }
 
             if (square.File < 7) {
                 var rightAttackSquare = Coord.Create(square.File + 1, square.Rank + forward);
-                if (_board.EnPassantTarget.Equals(rightAttackSquare) ||
-                    Piece.Color(_board.GetPiece(rightAttackSquare)) == _board.OpponentColor) {
+                if (Piece.Color(_board.GetPiece(rightAttackSquare)) == _board.OpponentColor) {
+                    yield return rightAttackSquare;
+                }
+                else if (_board.EnPassantTarget.Equals(rightAttackSquare)) {
+                    // TODO: Check if this reveals a check
                     yield return rightAttackSquare;
                 }
             }
@@ -278,9 +292,32 @@ namespace Core {
                 Coord.Create(square.File - 1, square.Rank - 1)
             };
 
-            return targetSquares.Where(ts => ts.InBounds)
+            IEnumerable<Coord> moves = targetSquares.Where(ts => ts.InBounds)
                 .Where(ts => _board.IsEmpty(ts) || Piece.IsColor(_board.GetPiece(ts), _board.OpponentColor))
                 .Where(sq => _attackedSquares[sq.File, sq.Rank] == 0);
+
+            if (_board.CanCastleKingSide) {
+                var rightSquare = Coord.Create(square.File + 1, square.Rank);
+                var right2Square = Coord.Create(square.File + 2, square.Rank);
+                if (_board.IsEmpty(rightSquare) && _board.IsEmpty(right2Square) &&
+                    _attackedSquares[rightSquare.File, rightSquare.Rank] == 0 &&
+                    _attackedSquares[right2Square.File, right2Square.Rank] == 0) {
+                    moves = moves.Append(right2Square);
+                }
+            }
+
+            if (_board.CanCastleQueenSide) {
+                var leftSquare = Coord.Create(square.File - 1, square.Rank);
+                var left2Square = Coord.Create(square.File - 2, square.Rank);
+                var left3Square = Coord.Create(square.File - 3, square.Rank);
+                if (_board.IsEmpty(leftSquare) && _board.IsEmpty(left2Square) && _board.IsEmpty(left3Square) &&
+                    _attackedSquares[leftSquare.File, leftSquare.Rank] == 0 &&
+                    _attackedSquares[left2Square.File, left2Square.Rank] == 0) {
+                    moves = moves.Append(left2Square);
+                }
+            }
+
+            return moves;
         }
 
         private IEnumerable<Coord> GetKingThreats(Coord square) {
@@ -434,36 +471,31 @@ namespace Core {
             return total;
         }
 
-        public int CountMovesParallel(int depth, CancellationToken cancellationToken) {
+        public int CountMovesParallel(int depth) {
             if (depth == 0) return 1;
             return ValidMoves().AsParallel().WithDegreeOfParallelism(Environment.ProcessorCount)
-                .WithCancellation(cancellationToken)
                 .Select(move => {
                     var copy = _board.Clone();
-                    return copy.CommitMove(move)
-                        ? new MoveGenerator(copy).CountMoves(depth - 1)
-                        : // sequential below root
-                        1;
+                    copy.CommitMove(move);
+                    return new MoveGenerator(copy).CountMoves(depth - 1);
                 }).Sum();
         }
 
-        public int CountMovesWithConcurrentQueue(int depth, CancellationToken ct) {
+        public int CountMovesWithConcurrentQueue(int depth) {
             if (depth == 0) return 1;
             var queue = new ConcurrentQueue<(Board board, int d)>();
             foreach (var move in ValidMoves()) {
                 var copy = _board.Clone();
-                if (copy.CommitMove(move))
-                    queue.Enqueue((copy, depth - 1));
+                copy.CommitMove(move);
+                queue.Enqueue((copy, depth - 1));
             }
 
             int total = 0;
             int workers = Environment.ProcessorCount;
 
-            Parallel.For(0, workers, new ParallelOptions { CancellationToken = ct }, _ => {
+            Parallel.For(0, workers, new ParallelOptions(), _ => {
                 var stack = new Stack<(Board board, int d)>();
                 while (!queue.IsEmpty || stack.Count > 0) {
-                    ct.ThrowIfCancellationRequested();
-
                     if (stack.Count == 0 && queue.TryDequeue(out var rootItem)) {
                         stack.Push(rootItem);
                     }
@@ -502,8 +534,17 @@ namespace Core {
         }
 
         public bool ValidateMove(Coord from, Coord to, out Move? validMove) {
-            validMove = ValidMovesForSquare(from).FirstOrDefault(move => move.To.Equals(to));
-            return validMove != null;
+            var move = ValidMovesForSquare(from)
+                .FirstOrDefault(m => m.To.Equals(to));
+
+            // check whether a valid move was actually found
+            if (!move.Equals(default(Move))) {
+                validMove = move;
+                return true;
+            }
+
+            validMove = null;
+            return false;
         }
     }
 }

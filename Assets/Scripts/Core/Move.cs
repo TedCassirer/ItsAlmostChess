@@ -8,6 +8,7 @@ namespace Core {
         public readonly int CapturedPiece;
         public readonly int PromotionPiece;
         public readonly bool IsEnPassant;
+        public readonly bool IsCastling;
 
         public Coord? EnPassantCapturedPawnSquare => IsEnPassant
             ? Coord.Create(To.File, From.Rank)
@@ -17,17 +18,22 @@ namespace Core {
         public bool IsCapture => CapturedPiece != Piece.None;
 
         public Move(Coord from, Coord to, int capturedPiece = Piece.None, int promotionPiece = Piece.None,
-            bool isEnPassant = false) {
+            bool isEnPassant = false, bool isCastling = false) {
             From = from;
             To = to;
             CapturedPiece = capturedPiece;
             PromotionPiece = promotionPiece;
             IsEnPassant = isEnPassant;
+            IsCastling = isCastling;
         }
 
-        public static Move CreateEnPassantMove(Coord from, Coord to) {
+        public static Move EnPassantMove(Coord from, Coord to) {
             var cappedColor = from.Rank < to.Rank ? Piece.Black : Piece.White;
             return new Move(from, to, capturedPiece: Piece.Pawn | cappedColor, isEnPassant: true);
+        }
+        
+        public static Move Castle(Coord from, Coord to) {
+            return new Move(from, to, isCastling: true);
         }
 
         public static List<Move> CreatePromotionMove(Move baseMove, int color) {

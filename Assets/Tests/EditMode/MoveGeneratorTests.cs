@@ -12,6 +12,8 @@ namespace Tests {
         private const string PawnPromotionPosition = "8/4P3/8/8/8/8/8/K7 w - - 0 1";
         private const string EnPassantPosition = "8/8/8/3pP3/8/8/8/K7 w - d6 0 1";
         private const string EnPassantCheckThreatPosition = "8/8/8/3pP3/2K/8/4r3/7 w - d6 0 1";
+        private const string CastlingPosition = "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1";
+
 
         private Board board;
         private MoveGenerator generator;
@@ -75,7 +77,7 @@ namespace Tests {
             Assert.That(moves.All(m =>
                 Piece.Type(m.PromotionPiece) is Piece.Queen or Piece.Rook or Piece.Bishop or Piece.Knight));
         }
-        
+
         [Test]
         public void EnPassantMove() {
             List<Move> moves = MovesFor(EnPassantPosition, Piece.Pawn | Piece.White);
@@ -85,6 +87,7 @@ namespace Tests {
             board.CommitMove(epMove);
             Assert.That(board.GetPiece(epMove.EnPassantCapturedPawnSquare.Value), Is.EqualTo(Piece.None));
         }
+
         [Test]
         public void EnPassantToAvoidCheck() {
             List<Move> moves = MovesFor(EnPassantCheckThreatPosition, Piece.Pawn | Piece.White);
@@ -92,24 +95,40 @@ namespace Tests {
             Move epMove = moves[0];
             Assert.That(epMove.IsEnPassant);
         }
-          
+
+        [Test]
+        public void CastlingMoves() {
+            List<Move> moves = MovesFor(CastlingPosition, Piece.King | Piece.White);
+
+            Assert.That(moves.Count(m => m.IsCastling), Is.EqualTo(2));
+        }
+
         [TestCase(1, 20)]
         [TestCase(2, 400)]
         [TestCase(3, 8_902)]
         [TestCase(4, 197_281)]
-        [TestCase(5, 4_865_609, 600_000)] // Got 4_865_167, 1 min 27 seconds with root split parallel, 54s with ConcurrentQueue
+        [TestCase(5, 4_865_609)]
         // [TestCase(6, 119_060_324, 300_000_000)]
-        public void ShannonNumberCalculation(int depth, int expectedMoves, int timeoutMs = 5_000) {
-            
+        public void ShannonNumberCalculation(int depth, int expectedMoves) {
             /***
              * For 5, got 4_865_167, 1 min 27 seconds with root split parallel, 54s with ConcurrentQueue.
              * Some optimizations later it's down to 8 seconds. Still copying the board for each move though.
              */
             Load(StartingPosition);
-            CancellationTokenSource source = new CancellationTokenSource();
-            CancellationToken token = source.Token;
-            source.CancelAfter(timeoutMs);
-            var moveCount = generator.CountMovesParallel(depth, token);
+            var moveCount = generator.CountMovesParallel(depth);
+            Assert.That(moveCount, Is.EqualTo(expectedMoves));
+        }
+        
+        [TestCase(1, 44)]
+        [TestCase(2, 1486)]
+        [TestCase(3, 62379)]
+        [TestCase(4, 2103487)]
+        [TestCase(5, 89941194)]
+        public void PerformanceTestPos5(int depth, int expectedMoves) {
+            // https://www.chessprogramming.org/Perft_Results#Position_5
+            const string position5Perft = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
+            Load(position5Perft);
+            var moveCount = generator.CountMovesParallel(depth);
             Assert.That(moveCount, Is.EqualTo(expectedMoves));
         }
     }

@@ -163,6 +163,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f7e8da4435e84ce88a74e52e9d21b6c5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: '::'
+  showThreats: 0
   boardTheme: {fileID: 11400000, guid: 8130ee9840d55024aa46b3095c388e30, type: 2}
   pieceTheme: {fileID: 11400000, guid: c181b8847cdf9414fbb385b03357bdec, type: 2}
 --- !u!1 &419893280
@@ -193,7 +194,8 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4923202a1f42b6c4fab4150989ccc66f, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GameManager
+  m_EditorClassIdentifier: Assembly-CSharp::Core.GameManager
+  startingPosition: rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8
 --- !u!4 &419893282
 Transform:
   m_ObjectHideFlags: 0

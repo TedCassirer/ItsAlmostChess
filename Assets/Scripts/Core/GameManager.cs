@@ -7,14 +7,19 @@ namespace Core {
         private Human _human;
         private MoveGenerator _moveGenerator;
 
-        public string startingPosition = "8/8/8/3pP3/2K/8/8/7 w - d6 0 1";
+        private string startingPosition = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
 
         private void Awake() {
             _board = new Board();
             _boardUI = FindFirstObjectByType<BoardUI>();
-            _board.LoadFENPosition(startingPosition);
             _moveGenerator = new MoveGenerator(_board);
             _human = new Human(_board, _boardUI, _moveGenerator);
+        }
+
+        public void Start() {
+            _board.LoadFENPosition(startingPosition);
+            _boardUI.UpdatePosition(_board);
+            _moveGenerator.Refresh();
         }
         
         [ContextMenu("Reset Game")]
@@ -26,9 +31,6 @@ namespace Core {
             _boardUI.UpdatePosition(_board);
         }
 
-        public void Start() {
-            _boardUI.UpdatePosition(_board);
-        }
 
         public void Update() {
             _human.Update();
