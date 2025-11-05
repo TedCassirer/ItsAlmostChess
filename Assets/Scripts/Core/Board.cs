@@ -1,5 +1,4 @@
 ﻿using System;
-using UnityEngine;
 
 namespace Core {
     public class Board {
@@ -27,7 +26,6 @@ namespace Core {
                     file++;
                 }
 
-            Debug.Log(_squares);
         }
 
         public int GetPiece(Coord coord) {
@@ -48,6 +46,13 @@ namespace Core {
 
             IsWhitesTurn ^= true;
             return true;
+        }
+        
+        public Board Clone() {
+            var newBoard = new Board();
+            Array.Copy(_squares, newBoard._squares, _squares.Length);
+            newBoard.IsWhitesTurn = IsWhitesTurn;
+            return newBoard;
         }
 
         public bool IsPieceColor(Coord sq, int color) {

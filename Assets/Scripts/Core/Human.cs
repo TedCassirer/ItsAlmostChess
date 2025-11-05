@@ -10,12 +10,10 @@ namespace Core {
         private Coord _selectedPieceSquare;
         private int _selectedPiece;
         private bool _isDraggingPiece;
-        private int _color;
 
-        public Human(Board board, BoardUI boardUI, int color) {
+        public Human(Board board, BoardUI boardUI) {
             _board = board;
             _boardUI = boardUI;
-            _color = color;
         }
 
         public void Update() {
@@ -59,7 +57,7 @@ namespace Core {
                 _boardUI.ReleasePiece(_selectedPieceSquare);
                 _isDraggingPiece = false;
 
-                if (_boardUI.TryGetSquareUnderMouse(out var targetSquare)) {
+                if (_boardUI.TryGetSquareUnderMouse(out Coord targetSquare)) {
                     var isCapture = Piece.IsOppositeColor(_selectedPiece, _board.GetPiece(targetSquare));
                     var move = new Move(_selectedPieceSquare, targetSquare, isCapture);
                     if (_board.MakeMove(move)) {

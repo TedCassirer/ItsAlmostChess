@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using JetBrains.Annotations;
-using Unity.VisualScripting;
 using Utils;
 
 namespace Core {
@@ -85,12 +87,12 @@ namespace Core {
 
         public List<Move> ValidMovesForSquare(Coord square) {
             var piece = _board.GetPiece(square);
-            if (piece == Piece.None || _board.IsWhitesTurn ^ Piece.IsColor(piece, Piece.White)) return Empty<Move>.list;
+            if (piece == Piece.None || _board.IsWhitesTurn ^ Piece.IsColor(piece, Piece.White)) return new List<Move>();
 
             IEnumerable<Coord> targetSquares;
             if (InDoubleCheck) {
                 // Double check, we must move the king.
-                targetSquares = Piece.Type(piece) == Piece.King ? GenerateKingMoves(square) : Empty<Coord>.list;
+                targetSquares = Piece.Type(piece) == Piece.King ? GenerateKingMoves(square) : new List<Coord>();
             }
             else if (InCheck) {
                 // Only keep moves that stops check
@@ -106,7 +108,7 @@ namespace Core {
                         Piece.Queen => GenerateQueenMoves(square),
                         Piece.Rook => GenerateRookMoves(square),
                         Piece.Bishop => GenerateBishopMoves(square),
-                        _ => Empty<Coord>.list
+                        _ => new List<Coord>()
                     }).Where(sq => _squaresStoppingCheck.Contains(sq));
                 }
             }
@@ -120,7 +122,7 @@ namespace Core {
                     Piece.Rook => GenerateRookMoves(square),
                     Piece.Bishop => GenerateBishopMoves(square),
                     Piece.King => GenerateKingMoves(square),
-                    _ => Empty<Coord>.list
+                    _ => new List<Coord>()
                 };
             }
 
@@ -263,7 +265,8 @@ namespace Core {
                 var dRank = _friendlyKing.rank - checkingSquare.rank;
                 var dFile = _friendlyKing.file - checkingSquare.file;
                 var dir = new Direction(Math.Clamp(dFile, -1, 1), Math.Clamp(dRank, -1, 1));
-                foreach (Coord sq in dir.MoveUntil(checkingSquare, includeStartSquare: true).TakeWhile(sq => !sq.Equals(_friendlyKing))) {
+                foreach (Coord sq in dir.MoveUntil(checkingSquare, includeStartSquare: true)
+                             .TakeWhile(sq => !sq.Equals(_friendlyKing))) {
                     _squaresStoppingCheck.Add(sq);
                 }
             }
@@ -335,6 +338,85 @@ namespace Core {
             }
 
             return _ => true;
+        }
+
+        public int CountMoves(int depth) {
+            if (depth == 0) return 1;
+            var total = 0;
+            foreach (var move in ValidMoves()) {
+                var copy = _board.Clone();
+                if (!copy.MakeMove(move)) continue;
+                total += new MoveGenerator(copy).CountMoves(depth - 1);
+            }
+
+            return total;
+        }
+
+        public int CountMovesParallel(int depth, CancellationToken cancellationToken) {
+            if (depth == 0) return 1;
+            return ValidMoves().AsParallel().WithDegreeOfParallelism(Environment.ProcessorCount)
+                .WithCancellation(cancellationToken)
+                .Select(move => {
+                    var copy = _board.Clone();
+                    return copy.MakeMove(move)
+                        ? new MoveGenerator(copy).CountMoves(depth - 1)
+                        : // sequential below root
+                        1;
+                }).Sum();
+        }
+
+        public int CountMovesWithConcurrentQueue(int depth, CancellationToken ct) {
+            if (depth == 0) return 1;
+            var queue = new ConcurrentQueue<(Board board, int d)>();
+            foreach (var move in ValidMoves()) {
+                var copy = _board.Clone();
+                if (copy.MakeMove(move))
+                    queue.Enqueue((copy, depth - 1));
+            }
+
+            int total = 0;
+            int workers = Environment.ProcessorCount;
+
+            Parallel.For(0, workers, new ParallelOptions { CancellationToken = ct }, _ => {
+                var stack = new Stack<(Board board, int d)>();
+                while (!queue.IsEmpty || stack.Count > 0) {
+                    ct.ThrowIfCancellationRequested();
+
+                    if (stack.Count == 0 && queue.TryDequeue(out var rootItem)) {
+                        stack.Push(rootItem);
+                    }
+
+                    if (stack.Count == 0) continue;
+
+                    var (b, d) = stack.Pop();
+                    if (d == 0) {
+                        Interlocked.Increment(ref total);
+                        continue;
+                    }
+
+                    var gen = new MoveGenerator(b);
+                    foreach (var mv in gen.ValidMoves()) {
+                        var child = b.Clone();
+                        if (!child.MakeMove(mv)) continue;
+
+                        int nd = d - 1;
+                        if (nd == 0) {
+                            Interlocked.Increment(ref total);
+                        }
+                        else {
+                            // Occasionally re-enqueue to help other threads if local stack is large
+                            if (stack.Count > 64) {
+                                queue.Enqueue((child, nd));
+                            }
+                            else {
+                                stack.Push((child, nd));
+                            }
+                        }
+                    }
+                }
+            });
+
+            return total;
         }
     }
 }
