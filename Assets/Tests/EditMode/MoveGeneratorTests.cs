@@ -78,7 +78,7 @@ namespace Tests {
         [TestCase(2, 400)]
         [TestCase(3, 8_902)]
         [TestCase(4, 197_281)]
-        // [TestCase(5, 4_865_609, 600_000)] // Got 4_865_167, 1 min 27 seconds with root split parallel, 54s with ConcurrentQueue
+        [TestCase(5, 4_865_609, 600_000)] // Got 4_865_167, 1 min 27 seconds with root split parallel, 54s with ConcurrentQueue
         // [TestCase(6, 119_060_324, 300_000_000)]
         public void ShannonNumberCalculation(int depth, int expectedMoves, int timeoutMs = 5_000) {
             

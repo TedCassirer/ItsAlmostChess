@@ -70,7 +70,7 @@ namespace Core {
             for (var file = 0; file < 8; file++) {
                 for (var rank = 0; rank < 8; rank++) {
                     if (_squares[file, rank] == kingPiece) {
-                        return new Coord(file, rank);
+                        return Coord.Create(file, rank);
                     }
                 }
             }
@@ -86,7 +86,7 @@ namespace Core {
             for (var file = 0; file < 8; file++) {
                 for (var rank = 0; rank < 8; rank++) {
                     if (_squares[file, rank] == piece) {
-                        return new Coord(file, rank);
+                        return Coord.Create(file, rank);
                     }
                 }
             }

@@ -35,7 +35,7 @@ public class BoardUI : MonoBehaviour {
             squareGO.transform.SetParent(boardGO.transform, false);
             squareGO.transform.localPosition = new Vector3(file, rank, 0f);
             var square = squareGO.transform.AddComponent<BoardSquare>();
-            square.Init(new Coord(file, rank), boardTheme);
+            square.Init(Coord.Create(file, rank), boardTheme);
 
             var pieceGO = new GameObject("Piece");
             pieceGO.transform.SetParent(squareGO.transform, false);
@@ -81,7 +81,7 @@ public class BoardUI : MonoBehaviour {
 
         var file = mousePos.x + 4f;
         var rank = mousePos.y + 4f;
-        selectedCoord = new Coord((int)file, (int)rank);
+        selectedCoord = Coord.Create((int)file, (int)rank);
         return file is >= 0 and < 8 && rank is >= 0 and < 8;
     }
 
@@ -112,7 +112,7 @@ public class BoardUI : MonoBehaviour {
         for (var rank = 0; rank < 8; rank++)
         for (var file = 0; file < 8; file++) {
             var piece = _board.GetPiece(file, rank);
-            if (Piece.IsColor(piece, _board.OpponentColor)) HighlightThreats(new Coord(file, rank));
+            if (Piece.IsColor(piece, _board.OpponentColor)) HighlightThreats(Coord.Create(file, rank));
         }
     }
 

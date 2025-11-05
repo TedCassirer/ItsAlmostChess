@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Linq;
+using Unity.VisualScripting;
 using Utils;
 
 namespace Core {
@@ -6,9 +8,19 @@ namespace Core {
         public readonly int file;
         public readonly int rank;
 
-        public Coord(int file, int rank) {
+        private static Coord[] _allSquares = Enumerable.Range(0, 8)
+            .SelectMany(file => Enumerable.Range(0, 8).Select(rank => new Coord(file, rank)))
+            .ToArray();
+
+        private Coord(int file, int rank) {
             this.file = file;
             this.rank = rank;
+        }
+
+        public static Coord Create(int file, int rank) {
+            if (file < 0 || file >= 8 || rank < 0 || rank >= 8)
+                return new Coord(file, rank);
+            return _allSquares[file * 8 + rank];
         }
 
         public bool IsLightSquare() {

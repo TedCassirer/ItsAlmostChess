@@ -22,7 +22,7 @@ namespace Core {
         }
 
         public Coord Move(Coord fromCoord, int steps) {
-            return new Coord(fromCoord.file + _dFile * steps, fromCoord.rank + _dRank * steps);
+            return Coord.Create(fromCoord.file + _dFile * steps, fromCoord.rank + _dRank * steps);
         }
 
         public IEnumerable<Coord> MoveUntil(Coord start, [CanBeNull] Predicate<Coord> stopCondition = null,
@@ -85,7 +85,7 @@ namespace Core {
             var moves = new List<Move>();
             for (var file = 0; file < 8; file++)
             for (var rank = 0; rank < 8; rank++) {
-                var square = new Coord(file, rank);
+                var square = Coord.Create(file, rank);
                 moves.AddRange(ValidMovesForSquare(square));
             }
 
@@ -157,10 +157,10 @@ namespace Core {
             var forward = Piece.IsColor(piece, Piece.White) ? 1 : -1;
             var nextRank = square.rank + forward;
             if (_board.GetPiece(square.file, nextRank) != Piece.None) yield break;
-            yield return new Coord(square.file, nextRank);
+            yield return Coord.Create(square.file, nextRank);
             if (BoardUtils.IsPawnStartRank(square.rank, piece) &&
                 _board.GetPiece(square.file, nextRank + forward) == Piece.None)
-                yield return new Coord(square.file, nextRank + forward);
+                yield return Coord.Create(square.file, nextRank + forward);
         }
 
         private IEnumerable<Coord> GeneratePawnAttacks(Coord square) {
@@ -171,8 +171,8 @@ namespace Core {
 
             var nextRank = square.rank + forward;
             var attackedSquares = new List<Coord> {
-                new(square.file - 1, nextRank),
-                new(square.file + 1, nextRank)
+                Coord.Create(square.file - 1, nextRank),
+                Coord.Create(square.file + 1, nextRank)
             };
             return attackedSquares.Where(sq => sq.InBounds);
         }
@@ -182,15 +182,15 @@ namespace Core {
             if (Piece.Type(piece) != Piece.Knight) throw new Exception("Not a knight piece");
 
             var targetSquares = new List<Coord> {
-                new(square.file + 2, square.rank - 1),
-                new(square.file + 2, square.rank + 1),
-                new(square.file - 2, square.rank - 1),
-                new(square.file - 2, square.rank + 1),
+                Coord.Create(square.file + 2, square.rank - 1),
+                Coord.Create(square.file + 2, square.rank + 1),
+                Coord.Create(square.file - 2, square.rank - 1),
+                Coord.Create(square.file - 2, square.rank + 1),
 
-                new(square.file + 1, square.rank - 2),
-                new(square.file + 1, square.rank + 2),
-                new(square.file - 1, square.rank - 2),
-                new(square.file - 1, square.rank + 2)
+                Coord.Create(square.file + 1, square.rank - 2),
+                Coord.Create(square.file + 1, square.rank + 2),
+                Coord.Create(square.file - 1, square.rank - 2),
+                Coord.Create(square.file - 1, square.rank + 2)
             };
             return targetSquares.Where(sq => sq.InBounds).Where(ts => {
                 var targetSquarePiece = _board.GetPiece(ts);
@@ -229,16 +229,16 @@ namespace Core {
             var piece = _board.GetPiece(square);
             if (Piece.Type(piece) != Piece.King) throw new Exception("Not a king piece");
             var targetSquares = new List<Coord> {
-                new(square.file + 1, square.rank + 1),
-                new(square.file + 1, square.rank),
-                new(square.file + 1, square.rank - 1),
+                Coord.Create(square.file + 1, square.rank + 1),
+                Coord.Create(square.file + 1, square.rank),
+                Coord.Create(square.file + 1, square.rank - 1),
 
-                new(square.file, square.rank + 1),
-                new(square.file, square.rank - 1),
+                Coord.Create(square.file, square.rank + 1),
+                Coord.Create(square.file, square.rank - 1),
 
-                new(square.file - 1, square.rank + 1),
-                new(square.file - 1, square.rank),
-                new(square.file - 1, square.rank - 1)
+                Coord.Create(square.file - 1, square.rank + 1),
+                Coord.Create(square.file - 1, square.rank),
+                Coord.Create(square.file - 1, square.rank - 1)
             };
 
             return targetSquares.Where(ts => ts.InBounds)
@@ -255,7 +255,7 @@ namespace Core {
             for (var rank = 0; rank < 8; rank++) {
                 var piece = _board.GetPiece(file, rank);
                 if (!Piece.IsColor(piece, _board.OpponentColor)) continue;
-                var attackingPiece = new Coord(file, rank);
+                var attackingPiece = Coord.Create(file, rank);
                 foreach (Coord c in GetAttackedSquares(attackingPiece)) {
                     _attackedSquares[c.file, c.rank]++;
                     if (c.Equals(_friendlyKing)) {
@@ -352,13 +352,12 @@ namespace Core {
 
         public int CountMoves(int depth) {
             if (depth == 0) return 1;
+            Refresh();
             var total = 0;
             foreach (var move in ValidMoves()) {
                 _board.MakeMove(move);
-                Refresh();
                 total += CountMoves(depth - 1);
                 _board.UndoMove(move);
-                Refresh();
             }
 
             return total;
@@ -409,7 +408,7 @@ namespace Core {
                     var gen = new MoveGenerator(b);
                     foreach (var mv in gen.ValidMoves()) {
                         var child = b.Clone();
-                        if (!child.MakeMove(mv)) continue;
+                        child.MakeMove(mv);
 
                         int nd = d - 1;
                         if (nd == 0) {
