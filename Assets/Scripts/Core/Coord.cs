@@ -2,7 +2,7 @@
 using Utils;
 
 namespace Core {
-    public struct Coord : IComparable<Coord>, IEquatable<Coord> {
+    public readonly struct Coord : IComparable<Coord>, IEquatable<Coord> {
         public readonly int file;
         public readonly int rank;
 
@@ -18,6 +18,8 @@ namespace Core {
         public int CompareTo(Coord other) {
             return file == other.file && rank == other.rank ? 0 : 1;
         }
+
+        public bool InBounds => (file is >= 0 and < 8) && (rank is >= 0 and < 8);
 
         public override string ToString() {
             return BoardUtils.SquareName(file, rank);

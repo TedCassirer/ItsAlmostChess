@@ -1,17 +1,50 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using JetBrains.Annotations;
 using Unity.VisualScripting;
 using Utils;
 
 namespace Core {
     internal struct Direction {
-        public readonly int dFile;
-        public readonly int dRank;
+        private readonly int _dFile;
+        private readonly int _dRank;
+
+        public bool IsDiagonal => Math.Abs(_dFile) == Math.Abs(_dRank) && _dFile != 0;
+        public bool IsCardinal => _dFile == 0 ^ _dRank == 0;
 
         public Direction(int dFile, int dRank) {
-            this.dFile = dFile;
-            this.dRank = dRank;
+            _dFile = dFile;
+            _dRank = dRank;
+        }
+
+        public Coord Move(Coord fromCoord, int steps) {
+            return new Coord(fromCoord.file + _dFile * steps, fromCoord.rank + _dRank * steps);
+        }
+
+        public IEnumerable<Coord> MoveUntil(Coord start, [CanBeNull] Predicate<Coord> stopCondition = null,
+            bool includeStartSquare = false,
+            bool includeStopSquare = false) {
+            for (var k = includeStartSquare ? 0 : 1;; k++) {
+                Coord c = Move(start, k);
+                if (!c.InBounds) {
+                    yield break;
+                }
+
+                if (stopCondition != null && stopCondition(c)) {
+                    if (includeStopSquare) {
+                        yield return c;
+                    }
+
+                    yield break;
+                }
+
+                yield return c;
+            }
+        }
+
+        public Direction Reverse() {
+            return new Direction(-_dFile, -_dRank);
         }
     }
 
@@ -80,9 +113,10 @@ namespace Core {
             }
 
             return targetSquares
+                .Where(PinnedRestriction(square).Invoke)
                 .Where(ts => {
                     var tsPiece = _board.GetPiece(ts);
-                    return Piece.Type(tsPiece) == Piece.None || Piece.IsColor(tsPiece, _board.OpponentColor);
+                    return tsPiece == Piece.None || Piece.IsColor(tsPiece, _board.OpponentColor);
                 })
                 .Select(ts => CreateMove(square, ts)).ToList();
         }
@@ -96,19 +130,13 @@ namespace Core {
             var piece = _board.GetPiece(square);
             if (Piece.Type(piece) != Piece.Pawn) throw new Exception("Not a pawn piece");
 
-            if (IsPinned(square, out Coord pinnedBy))
-                // TODO: Check if we can capture
-                yield break;
-
             var forward = Piece.IsColor(piece, Piece.White) ? 1 : -1;
             var nextRank = square.rank + forward;
-            if (InBounds(nextRank)) {
-                if (_board.GetPiece(square.file, nextRank) != Piece.None) yield break;
-                yield return new Coord(square.file, nextRank);
-                if (BoardUtils.IsPawnStartRank(square.rank, piece) &&
-                    _board.GetPiece(square.file, nextRank + forward) == Piece.None)
-                    yield return new Coord(square.file, nextRank + forward);
-            }
+            if (_board.GetPiece(square.file, nextRank) != Piece.None) yield break;
+            yield return new Coord(square.file, nextRank);
+            if (BoardUtils.IsPawnStartRank(square.rank, piece) &&
+                _board.GetPiece(square.file, nextRank + forward) == Piece.None)
+                yield return new Coord(square.file, nextRank + forward);
         }
 
         private IEnumerable<Coord> GeneratePawnAttacks(Coord square) {
@@ -122,16 +150,12 @@ namespace Core {
                 new(square.file - 1, nextRank),
                 new(square.file + 1, nextRank)
             };
-            return attackedSquares.Where(InBounds);
+            return attackedSquares.Where(sq => sq.InBounds);
         }
 
         private List<Coord> GenerateKnightMoves(Coord square) {
             var piece = _board.GetPiece(square);
             if (Piece.Type(piece) != Piece.Knight) throw new Exception("Not a knight piece");
-
-            if (IsPinned(square, out var pinnedBy))
-                // TODO: Check if we can capture
-                return new List<Coord>();
 
             var targetSquares = new List<Coord> {
                 new(square.file + 2, square.rank - 1),
@@ -144,7 +168,7 @@ namespace Core {
                 new(square.file - 1, square.rank - 2),
                 new(square.file - 1, square.rank + 2)
             };
-            return targetSquares.Where(InBounds).Where(ts => {
+            return targetSquares.Where(sq => sq.InBounds).Where(ts => {
                 var targetSquarePiece = _board.GetPiece(ts);
                 return targetSquarePiece == Piece.None || Piece.IsOppositeColor(piece, targetSquarePiece);
             }).ToList();
@@ -154,39 +178,32 @@ namespace Core {
             var piece = _board.GetPiece(square);
             if (Piece.Type(piece) != Piece.Bishop) throw new Exception("Not a bishop piece");
 
-            if (IsPinned(square, out var pinnedBy))
-                // TODO: Check if we can capture
-                return new List<Coord>();
-
-            return Diagonals.SelectMany(d => GetMovesInDirection(square, d)).ToList();
+            return Diagonals.SelectMany(d =>
+                    d.MoveUntil(square, sq => _board.GetPiece(sq) != Piece.None, includeStopSquare: true))
+                .ToList();
         }
 
         private List<Coord> GenerateRookMoves(Coord square) {
             var piece = _board.GetPiece(square);
             if (Piece.Type(piece) != Piece.Rook) throw new Exception("Not a rook piece");
 
-            if (IsPinned(square, out Coord pinnedBy))
-                // TODO: Check if we can capture
-                return new List<Coord>();
-
-            return Cardinals.SelectMany(d => GetMovesInDirection(square, d)).ToList();
+            return Cardinals.SelectMany(d =>
+                    d.MoveUntil(square, sq => _board.GetPiece(sq) != Piece.None, includeStopSquare: true))
+                .ToList();
         }
 
         private List<Coord> GenerateQueenMoves(Coord square) {
             var piece = _board.GetPiece(square);
             if (Piece.Type(piece) != Piece.Queen) throw new Exception("Not a queen piece");
 
-            if (IsPinned(square, out var pinnedBy))
-                // TODO: Check if we can capture
-                return new List<Coord>();
-
-            return Cardinals.Concat(Diagonals).SelectMany(d => GetMovesInDirection(square, d)).ToList();
+            return Cardinals.Concat(Diagonals).SelectMany(d =>
+                    d.MoveUntil(square, sq => _board.GetPiece(sq) != Piece.None, includeStopSquare: true))
+                .ToList();
         }
 
         private List<Coord> GenerateKingMoves(Coord square) {
             var piece = _board.GetPiece(square);
             if (Piece.Type(piece) != Piece.King) throw new Exception("Not a king piece");
-
             var targetSquares = new List<Coord> {
                 new(square.file + 1, square.rank + 1),
                 new(square.file + 1, square.rank),
@@ -200,8 +217,7 @@ namespace Core {
                 new(square.file - 1, square.rank - 1)
             };
 
-
-            return targetSquares.Where(InBounds)
+            return targetSquares.Where(ts => ts.InBounds)
                 .Where(ts => {
                     var targetSquarePiece = _board.GetPiece(ts);
                     return targetSquarePiece == Piece.None || Piece.IsOppositeColor(piece, targetSquarePiece);
@@ -235,8 +251,7 @@ namespace Core {
                 var dRank = _friendlyKing.rank - checkingSquare.rank;
                 var dFile = _friendlyKing.file - checkingSquare.file;
                 var dir = new Direction(Math.Clamp(dFile, -1, 1), Math.Clamp(dRank, -1, 1));
-                foreach (Coord sq in GetMovesInDirection(checkingSquare, dir)
-                             .TakeWhile(sq => !sq.Equals(_friendlyKing))) {
+                foreach (Coord sq in dir.MoveUntil(checkingSquare).TakeWhile(sq => !sq.Equals(_friendlyKing))) {
                     _squaresStoppingCheck.Add(sq);
                 }
             }
@@ -255,34 +270,44 @@ namespace Core {
             };
         }
 
-        private bool IsPinned(Coord square, out Coord pinnedBy) {
-            pinnedBy = square;
-            return false;
-        }
-
-        private bool InBounds(Coord coord) {
-            return InBounds(coord.file) && InBounds(coord.rank);
-        }
-
-        private bool InBounds(int rankOrIndex) {
-            return rankOrIndex is >= 0 and < 8;
-        }
-
-        private IEnumerable<Coord> GetMovesInDirection(Coord start, Direction dir) {
-            var piece = _board.GetPiece(start);
-            for (var k = 1;; k++) {
-                var nextSquare = new Coord(start.file + dir.dFile * k, start.rank + dir.dRank * k);
-                if (!InBounds(nextSquare)) yield break;
-
-                var targetSquarePiece = _board.GetPiece(nextSquare);
-                if (Piece.Type(targetSquarePiece) == Piece.None) {
-                    yield return nextSquare;
-                }
-                else {
-                    if (Piece.IsOppositeColor(piece, targetSquarePiece)) yield return nextSquare;
-                    yield break;
-                }
+        private Predicate<Coord> PinnedRestriction(Coord square) {
+            if (square.Equals(_friendlyKing)) {
+                return _ => true;
             }
+            var dRank = _friendlyKing.rank - square.rank;
+            var dFile = _friendlyKing.file - square.file;
+            var dir = new Direction(Math.Clamp(dFile, -1, 1), Math.Clamp(dRank, -1, 1)); // Direction towards the king
+            if (dir is { IsDiagonal: false, IsCardinal: false }) {
+                return _ => true;
+            }
+
+            // Towards the king
+            List<Coord> pathToKing = dir.MoveUntil(square, _friendlyKing.Equals).ToList();
+            if (pathToKing.Any(c => _board.GetPiece(c) != Piece.None)) {
+                // Another piece is blocking the path to the king
+                return _ => true;
+            }
+
+            // Away from the king
+            List<Coord> pathAwayFromKing = dir.Reverse()
+                .MoveUntil(square, sq => _board.GetPiece(sq) != Piece.None, includeStopSquare: true).ToList();
+            if (pathAwayFromKing.Count == 0) {
+                return _ => true;
+            }
+
+            var pieceInDir = _board.GetPiece(pathAwayFromKing.Last());
+            if (Piece.IsColor(pieceInDir, _board.ColorToMove)) {
+                // Friendly piece blocking the path
+                return _ => true;
+            }
+
+            var tsPieceType = Piece.Type(pieceInDir);
+            if (tsPieceType == Piece.Queen || (tsPieceType == Piece.Bishop && dir.IsDiagonal) ||
+                (tsPieceType == Piece.Rook && dir.IsCardinal)) {
+                return sq => pathToKing.Contains(sq) || pathAwayFromKing.Contains(sq);
+            }
+
+            return _ => true;
         }
     }
 }
