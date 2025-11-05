@@ -66,5 +66,20 @@ namespace Core {
 
             throw new Exception("Couldn't find the target king piece");
         }
+
+        public bool IsEmpty(Coord sq) {
+            return GetPiece(sq) == Piece.None;
+        }
+        
+        public Coord FindPiece(int piece) {
+            for (var file = 0; file < 8; file++) {
+                for (var rank = 0; rank < 8; rank++) {
+                    if (_squares[file, rank] == piece) {
+                        return new Coord(file, rank);
+                    }
+                }
+            }
+            throw new Exception("Couldn't find the target piece");
+        }
     }
 }

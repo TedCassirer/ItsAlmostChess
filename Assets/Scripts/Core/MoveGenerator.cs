@@ -6,7 +6,8 @@ using Unity.VisualScripting;
 using Utils;
 
 namespace Core {
-    internal struct Direction {
+    public struct Direction {
+        // CHANGED: was internal
         private readonly int _dFile;
         private readonly int _dRank;
 
@@ -69,6 +70,17 @@ namespace Core {
             _board = board;
             _friendlyKing = _board.GetFriendlyKing();
             CalculateAttackedData();
+        }
+
+        public List<Move> ValidMoves() {
+            var moves = new List<Move>();
+            for (var file = 0; file < 8; file++)
+            for (var rank = 0; rank < 8; rank++) {
+                var square = new Coord(file, rank);
+                moves.AddRange(ValidMovesForSquare(square));
+            }
+
+            return moves;
         }
 
         public List<Move> ValidMovesForSquare(Coord square) {
@@ -251,10 +263,24 @@ namespace Core {
                 var dRank = _friendlyKing.rank - checkingSquare.rank;
                 var dFile = _friendlyKing.file - checkingSquare.file;
                 var dir = new Direction(Math.Clamp(dFile, -1, 1), Math.Clamp(dRank, -1, 1));
-                foreach (Coord sq in dir.MoveUntil(checkingSquare).TakeWhile(sq => !sq.Equals(_friendlyKing))) {
+                foreach (Coord sq in dir.MoveUntil(checkingSquare, includeStartSquare: true).TakeWhile(sq => !sq.Equals(_friendlyKing))) {
                     _squaresStoppingCheck.Add(sq);
                 }
             }
+
+            _checkingPieces.ForEach(checkingSquare => {
+                var checkingPiece = _board.GetPiece(checkingSquare);
+                if (Piece.Type(checkingPiece) is Piece.Queen or Piece.Bishop or Piece.Rook) {
+                    // Mark the spaces behind the king as attacked to prevent king from moving there
+                    var dRank = _friendlyKing.rank - checkingSquare.rank;
+                    var dFile = _friendlyKing.file - checkingSquare.file;
+                    var dir = new Direction(Math.Clamp(dFile, -1, 1), Math.Clamp(dRank, -1, 1));
+                    foreach (var sq in dir
+                                 .MoveUntil(_friendlyKing, sq => !_board.IsEmpty(sq), includeStopSquare: true)) {
+                        _attackedSquares[sq.file, sq.rank]++;
+                    }
+                }
+            });
         }
 
         public IEnumerable<Coord> GetAttackedSquares(Coord square) {
@@ -274,6 +300,7 @@ namespace Core {
             if (square.Equals(_friendlyKing)) {
                 return _ => true;
             }
+
             var dRank = _friendlyKing.rank - square.rank;
             var dFile = _friendlyKing.file - square.file;
             var dir = new Direction(Math.Clamp(dFile, -1, 1), Math.Clamp(dRank, -1, 1)); // Direction towards the king

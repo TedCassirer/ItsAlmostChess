@@ -7,7 +7,7 @@ namespace Core {
         private Board _board;
         private Human _human;
 
-        private static readonly string StartingPosition = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
+        private const string StartingPosition = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
 
         private void Awake() {
             _board = new Board();
