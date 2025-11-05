@@ -6,10 +6,12 @@ using NUnit.Framework;
 
 namespace Tests {
     public class MoveGeneratorTests {
-        private const string StartingPosition = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
-        private const string KingInCheckPosition = "3Rr/3B/2N/8/2n/8/r1Q1K/8";
-        private const string DoubleCheck = "3Rr/8/8/8/8/8/r3K/8";
-        private const string PawnPromotionPosition = "8/4P3/8/8/8/8/8/K7";
+        private const string StartingPosition = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+        private const string KingInCheckPosition = "3Rr/3B/2N/8/2n/8/r1Q1K/8 w - - 0 1";
+        private const string DoubleCheck = "3Rr/8/8/8/8/8/r3K/8 w - - 0 1";
+        private const string PawnPromotionPosition = "8/4P3/8/8/8/8/8/K7 w - - 0 1";
+        private const string EnPassantPosition = "8/8/8/3pP3/8/8/8/K7 w - d6 0 1";
+        private const string EnPassantCheckThreatPosition = "8/8/8/3pP3/2K/8/4r3/7 w - d6 0 1";
 
         private Board board;
         private MoveGenerator generator;
@@ -72,6 +74,23 @@ namespace Tests {
             Assert.That(moves.Select(m => m.PromotionPiece).Distinct().Count(), Is.EqualTo(4));
             Assert.That(moves.All(m =>
                 Piece.Type(m.PromotionPiece) is Piece.Queen or Piece.Rook or Piece.Bishop or Piece.Knight));
+        }
+        
+        [Test]
+        public void EnPassantMove() {
+            List<Move> moves = MovesFor(EnPassantPosition, Piece.Pawn | Piece.White);
+            Assert.That(moves.Count, Is.EqualTo(2));
+            Move epMove = moves.First(m => m.IsEnPassant);
+            Assert.That(epMove.EnPassantCapturedPawnSquare, Is.EqualTo(Coord.Create(3, 4)));
+            board.CommitMove(epMove);
+            Assert.That(board.GetPiece(epMove.EnPassantCapturedPawnSquare.Value), Is.EqualTo(Piece.None));
+        }
+        [Test]
+        public void EnPassantToAvoidCheck() {
+            List<Move> moves = MovesFor(EnPassantCheckThreatPosition, Piece.Pawn | Piece.White);
+            Assert.That(moves.Count, Is.EqualTo(1));
+            Move epMove = moves[0];
+            Assert.That(epMove.IsEnPassant);
         }
           
         [TestCase(1, 20)]

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
+using Unity.VisualScripting;
 using Utils;
 
 namespace Core {
@@ -22,23 +23,13 @@ namespace Core {
         }
 
         public Coord Move(Coord fromCoord, int steps) {
-            return Coord.Create(fromCoord.file + _dFile * steps, fromCoord.rank + _dRank * steps);
+            return Coord.Create(fromCoord.File + _dFile * steps, fromCoord.Rank + _dRank * steps);
         }
 
-        public IEnumerable<Coord> MoveUntil(Coord start, [CanBeNull] Predicate<Coord> stopCondition = null,
-            bool includeStartSquare = false,
-            bool includeStopSquare = false) {
-            for (var k = includeStartSquare ? 0 : 1;; k++) {
+        public IEnumerable<Coord> MoveToEnd(Coord start) {
+            for (var k = 1;; k++) {
                 Coord c = Move(start, k);
                 if (!c.InBounds) {
-                    yield break;
-                }
-
-                if (stopCondition != null && stopCondition(c)) {
-                    if (includeStopSquare) {
-                        yield return c;
-                    }
-
                     yield break;
                 }
 
@@ -72,8 +63,8 @@ namespace Core {
             _board = board;
             Refresh();
         }
-        
-        private void Refresh() {
+
+        public void Refresh() {
             Array.Clear(_attackedSquares, 0, _attackedSquares.Length);
             _checkingPieces.Clear();
             _squaresBlockingCheck.Clear();
@@ -100,11 +91,11 @@ namespace Core {
             if (InDoubleCheck) {
                 // Double check, we must move the king.
                 targetSquares = Piece.Type(piece) == Piece.King ? GenerateKingMoves(square) : new List<Coord>();
-            } else {
+            }
+            else {
                 // Only keep moves that stops check
                 targetSquares = Piece.Type(piece) switch {
                     Piece.Pawn => GeneratePawnAttacks(square)
-                        .Where(ts => _board.IsPieceColor(ts, _board.OpponentColor))
                         .Concat(GeneratePawnMoves(square)),
                     Piece.Knight => GenerateKnightMoves(square),
                     Piece.Queen => GenerateQueenMoves(square),
@@ -114,40 +105,36 @@ namespace Core {
                     _ => new List<Coord>()
                 };
                 if (InCheck && !square.Equals(_friendlyKing)) {
-                    targetSquares = targetSquares.Where(ts => _squaresBlockingCheck.Contains(ts));
+                    targetSquares = targetSquares.Where(ts =>
+                        _squaresBlockingCheck.Contains(ts) ||
+                        (ts.Equals(_board.EnPassantTarget) && Piece.Type(piece) == Piece.Pawn));
                 }
             }
 
             return targetSquares
                 .Where(PinnedRestriction(square).Invoke)
-                .Where(ts => {
-                    var tsPiece = _board.GetPiece(ts);
-                    return tsPiece == Piece.None || Piece.IsColor(tsPiece, _board.OpponentColor);
-                })
                 .Select(ts => CreateMove(square, ts))
-                .SelectMany(ts => {
-                    if (Piece.Type(piece) == Piece.Pawn &&
-                        BoardUtils.IsPromotionRank(ts.To.rank, piece)) {
-                        return new List<Move> {
-                            new(ts.From, ts.To, capturedPiece: ts.CapturedPiece,
-                                promotionPiece: Piece.Queen | _board.ColorToMove),
-                            new(ts.From, ts.To, capturedPiece: ts.CapturedPiece,
-                                promotionPiece: Piece.Rook | _board.ColorToMove),
-                            new(ts.From, ts.To, capturedPiece: ts.CapturedPiece,
-                                promotionPiece: Piece.Bishop | _board.ColorToMove),
-                            new(ts.From, ts.To, capturedPiece: ts.CapturedPiece,
-                                promotionPiece: Piece.Knight | _board.ColorToMove)
-                        };
-                    }
-
-                    return new List<Move> { ts };
-                })
+                .SelectMany(GeneratePromotionMoves)
                 .ToList();
+        }
+
+        private IEnumerable<Move> GeneratePromotionMoves(Move baseMove) {
+            if (Piece.Type(_board.GetPiece(baseMove.From)) != Piece.Pawn ||
+                !BoardUtils.IsPromotionRank(baseMove.To.Rank, _board.GetPiece(baseMove.From))) {
+                yield return baseMove;
+                yield break;
+            }
+
+            foreach (Move m in Move.CreatePromotionMove(baseMove, _board.ColorToMove)) {
+                yield return m;
+            }
         }
 
 
         private Move CreateMove(Coord from, Coord to) {
-            return new Move(from, to, _board.GetPiece(to));
+            bool isEnPassant = to.Equals(_board.EnPassantTarget) &&
+                               Piece.Type(_board.GetPiece(from)) == Piece.Pawn;
+            return new Move(from, to, _board.GetPiece(to), isEnPassant: isEnPassant);
         }
 
         private IEnumerable<Coord> GeneratePawnMoves(Coord square) {
@@ -155,12 +142,12 @@ namespace Core {
             if (Piece.Type(piece) != Piece.Pawn) throw new Exception("Not a pawn piece");
 
             var forward = Piece.IsColor(piece, Piece.White) ? 1 : -1;
-            var nextRank = square.rank + forward;
-            if (_board.GetPiece(square.file, nextRank) != Piece.None) yield break;
-            yield return Coord.Create(square.file, nextRank);
-            if (BoardUtils.IsPawnStartRank(square.rank, piece) &&
-                _board.GetPiece(square.file, nextRank + forward) == Piece.None)
-                yield return Coord.Create(square.file, nextRank + forward);
+            var nextRank = square.Rank + forward;
+            if (_board.GetPiece(square.File, nextRank) != Piece.None) yield break;
+            yield return Coord.Create(square.File, nextRank);
+            if (BoardUtils.IsPawnStartRank(square.Rank, piece) &&
+                _board.GetPiece(square.File, nextRank + forward) == Piece.None)
+                yield return Coord.Create(square.File, nextRank + forward);
         }
 
         private IEnumerable<Coord> GeneratePawnAttacks(Coord square) {
@@ -169,85 +156,148 @@ namespace Core {
 
             var forward = Piece.IsColor(piece, Piece.White) ? 1 : -1;
 
-            var nextRank = square.rank + forward;
-            var attackedSquares = new List<Coord> {
-                Coord.Create(square.file - 1, nextRank),
-                Coord.Create(square.file + 1, nextRank)
-            };
-            return attackedSquares.Where(sq => sq.InBounds);
+            if (square.File > 0) {
+                var leftAttackSquare = Coord.Create(square.File - 1, square.Rank + forward);
+                if (_board.EnPassantTarget.Equals(leftAttackSquare) ||
+                    Piece.Color(_board.GetPiece(leftAttackSquare)) == _board.OpponentColor) {
+                    yield return leftAttackSquare;
+                }
+            }
+
+            if (square.File < 7) {
+                var rightAttackSquare = Coord.Create(square.File + 1, square.Rank + forward);
+                if (_board.EnPassantTarget.Equals(rightAttackSquare) ||
+                    Piece.Color(_board.GetPiece(rightAttackSquare)) == _board.OpponentColor) {
+                    yield return rightAttackSquare;
+                }
+            }
         }
 
-        private List<Coord> GenerateKnightMoves(Coord square) {
-            var piece = _board.GetPiece(square);
-            if (Piece.Type(piece) != Piece.Knight) throw new Exception("Not a knight piece");
+        private IEnumerable<Coord> GetPawnThreats(Coord square) {
+            var forward = _board.IsWhitesTurn ? -1 : 1;
 
+            if (square.File > 0) {
+                yield return Coord.Create(square.File - 1, square.Rank + forward);
+            }
+
+            if (square.File < 7) {
+                yield return Coord.Create(square.File + 1, square.Rank + forward);
+            }
+        }
+
+        private IEnumerable<Coord> GenerateKnightMoves(Coord square) {
             var targetSquares = new List<Coord> {
-                Coord.Create(square.file + 2, square.rank - 1),
-                Coord.Create(square.file + 2, square.rank + 1),
-                Coord.Create(square.file - 2, square.rank - 1),
-                Coord.Create(square.file - 2, square.rank + 1),
+                Coord.Create(square.File + 2, square.Rank - 1),
+                Coord.Create(square.File + 2, square.Rank + 1),
+                Coord.Create(square.File - 2, square.Rank - 1),
+                Coord.Create(square.File - 2, square.Rank + 1),
 
-                Coord.Create(square.file + 1, square.rank - 2),
-                Coord.Create(square.file + 1, square.rank + 2),
-                Coord.Create(square.file - 1, square.rank - 2),
-                Coord.Create(square.file - 1, square.rank + 2)
+                Coord.Create(square.File + 1, square.Rank - 2),
+                Coord.Create(square.File + 1, square.Rank + 2),
+                Coord.Create(square.File - 1, square.Rank - 2),
+                Coord.Create(square.File - 1, square.Rank + 2)
             };
-            return targetSquares.Where(sq => sq.InBounds).Where(ts => {
-                var targetSquarePiece = _board.GetPiece(ts);
-                return targetSquarePiece == Piece.None || Piece.IsOppositeColor(piece, targetSquarePiece);
-            }).ToList();
+            return targetSquares
+                .Where(sq => sq.InBounds)
+                .Where(ts => _board.IsEmpty(ts) || Piece.IsColor(_board.GetPiece(ts), _board.OpponentColor))
+                .Where(sq => !InCheck || _squaresBlockingCheck.Contains(sq));
         }
 
-        private List<Coord> GenerateBishopMoves(Coord square) {
-            var piece = _board.GetPiece(square);
-            if (Piece.Type(piece) != Piece.Bishop) throw new Exception("Not a bishop piece");
-
-            return Diagonals.SelectMany(d =>
-                    d.MoveUntil(square, sq => _board.GetPiece(sq) != Piece.None, includeStopSquare: true))
-                .ToList();
-        }
-
-        private List<Coord> GenerateRookMoves(Coord square) {
-            var piece = _board.GetPiece(square);
-            if (Piece.Type(piece) != Piece.Rook) throw new Exception("Not a rook piece");
-
-            return Cardinals.SelectMany(d =>
-                    d.MoveUntil(square, sq => _board.GetPiece(sq) != Piece.None, includeStopSquare: true))
-                .ToList();
-        }
-
-        private List<Coord> GenerateQueenMoves(Coord square) {
-            var piece = _board.GetPiece(square);
-            if (Piece.Type(piece) != Piece.Queen) throw new Exception("Not a queen piece");
-
-            return Cardinals.Concat(Diagonals).SelectMany(d =>
-                    d.MoveUntil(square, sq => _board.GetPiece(sq) != Piece.None, includeStopSquare: true))
-                .ToList();
-        }
-
-        private List<Coord> GenerateKingMoves(Coord square) {
-            var piece = _board.GetPiece(square);
-            if (Piece.Type(piece) != Piece.King) throw new Exception("Not a king piece");
+        private List<Coord> GetKnightThreats(Coord square) {
             var targetSquares = new List<Coord> {
-                Coord.Create(square.file + 1, square.rank + 1),
-                Coord.Create(square.file + 1, square.rank),
-                Coord.Create(square.file + 1, square.rank - 1),
+                Coord.Create(square.File + 2, square.Rank - 1),
+                Coord.Create(square.File + 2, square.Rank + 1),
+                Coord.Create(square.File - 2, square.Rank - 1),
+                Coord.Create(square.File - 2, square.Rank + 1),
 
-                Coord.Create(square.file, square.rank + 1),
-                Coord.Create(square.file, square.rank - 1),
+                Coord.Create(square.File + 1, square.Rank - 2),
+                Coord.Create(square.File + 1, square.Rank + 2),
+                Coord.Create(square.File - 1, square.Rank - 2),
+                Coord.Create(square.File - 1, square.Rank + 2)
+            };
+            return targetSquares.Where(sq => sq.InBounds).ToList();
+        }
 
-                Coord.Create(square.file - 1, square.rank + 1),
-                Coord.Create(square.file - 1, square.rank),
-                Coord.Create(square.file - 1, square.rank - 1)
+        private IEnumerable<Coord> GenerateBishopMoves(Coord square) {
+            return Diagonals.SelectMany(d => MovesIncludingCapturesInDirection(square, d))
+                .Where(sq => !InCheck || _squaresBlockingCheck.Contains(sq));
+        }
+
+        private IEnumerable<Coord> GetBishopThreats(Coord square) {
+            return Diagonals.SelectMany(d => MovesIncludingCapturesInDirection(square, d, bothColors: true));
+        }
+
+        private IEnumerable<Coord> GenerateRookMoves(Coord square) {
+            return Cardinals.SelectMany(d => MovesIncludingCapturesInDirection(square, d))
+                .Where(sq => !InCheck || _squaresBlockingCheck.Contains(sq));
+        }
+
+        private IEnumerable<Coord> GetRookThreats(Coord square) {
+            return Cardinals.SelectMany(d => MovesIncludingCapturesInDirection(square, d, bothColors: true));
+        }
+
+        private IEnumerable<Coord> GenerateQueenMoves(Coord square) {
+            return Cardinals.Concat(Diagonals)
+                .SelectMany(d => MovesIncludingCapturesInDirection(square, d))
+                .Where(sq => !InCheck || _squaresBlockingCheck.Contains(sq));
+        }
+
+        private IEnumerable<Coord> GetQueenThreats(Coord square) {
+            return Cardinals.Concat(Diagonals)
+                .SelectMany(d => MovesIncludingCapturesInDirection(square, d, bothColors: true));
+        }
+
+        private IEnumerable<Coord> MovesIncludingCapturesInDirection(Coord square, Direction direction,
+            bool bothColors = false) {
+            foreach (Coord coord in direction.MoveToEnd(square)) {
+                var targetPiece = _board.GetPiece(coord);
+                if (targetPiece == Piece.None) {
+                    yield return coord;
+                }
+                else {
+                    if (bothColors || Piece.IsColor(targetPiece, _board.OpponentColor)) {
+                        yield return coord;
+                    }
+
+                    yield break;
+                }
+            }
+        }
+
+        private IEnumerable<Coord> GenerateKingMoves(Coord square) {
+            var targetSquares = new List<Coord> {
+                Coord.Create(square.File + 1, square.Rank + 1),
+                Coord.Create(square.File + 1, square.Rank),
+                Coord.Create(square.File + 1, square.Rank - 1),
+
+                Coord.Create(square.File, square.Rank + 1),
+                Coord.Create(square.File, square.Rank - 1),
+
+                Coord.Create(square.File - 1, square.Rank + 1),
+                Coord.Create(square.File - 1, square.Rank),
+                Coord.Create(square.File - 1, square.Rank - 1)
             };
 
             return targetSquares.Where(ts => ts.InBounds)
-                .Where(ts => {
-                    var targetSquarePiece = _board.GetPiece(ts);
-                    return targetSquarePiece == Piece.None || Piece.IsOppositeColor(piece, targetSquarePiece);
-                })
-                .Where(sq => _attackedSquares[sq.file, sq.rank] == 0)
-                .ToList();
+                .Where(ts => _board.IsEmpty(ts) || Piece.IsColor(_board.GetPiece(ts), _board.OpponentColor))
+                .Where(sq => _attackedSquares[sq.File, sq.Rank] == 0);
+        }
+
+        private IEnumerable<Coord> GetKingThreats(Coord square) {
+            var targetSquares = new List<Coord> {
+                Coord.Create(square.File + 1, square.Rank + 1),
+                Coord.Create(square.File + 1, square.Rank),
+                Coord.Create(square.File + 1, square.Rank - 1),
+
+                Coord.Create(square.File, square.Rank + 1),
+                Coord.Create(square.File, square.Rank - 1),
+
+                Coord.Create(square.File - 1, square.Rank + 1),
+                Coord.Create(square.File - 1, square.Rank),
+                Coord.Create(square.File - 1, square.Rank - 1)
+            };
+
+            return targetSquares.Where(ts => ts.InBounds);
         }
 
         private void CalculateAttackedData() {
@@ -256,8 +306,8 @@ namespace Core {
                 var piece = _board.GetPiece(file, rank);
                 if (!Piece.IsColor(piece, _board.OpponentColor)) continue;
                 var attackingPiece = Coord.Create(file, rank);
-                foreach (Coord c in GetAttackedSquares(attackingPiece)) {
-                    _attackedSquares[c.file, c.rank]++;
+                foreach (Coord c in GetThreats(attackingPiece)) {
+                    _attackedSquares[c.File, c.Rank]++;
                     if (c.Equals(_friendlyKing)) {
                         _checkingPieces.Add(attackingPiece);
                     }
@@ -272,11 +322,11 @@ namespace Core {
                     return;
                 }
 
-                var dRank = _friendlyKing.rank - checkingSquare.rank;
-                var dFile = _friendlyKing.file - checkingSquare.file;
+                var dRank = _friendlyKing.Rank - checkingSquare.Rank;
+                var dFile = _friendlyKing.File - checkingSquare.File;
                 var dir = new Direction(Math.Clamp(dFile, -1, 1), Math.Clamp(dRank, -1, 1));
-                foreach (Coord sq in dir.MoveUntil(checkingSquare, includeStartSquare: true)
-                             .TakeWhile(sq => !sq.Equals(_friendlyKing))) {
+                _squaresBlockingCheck.Add(checkingSquare);
+                foreach (Coord sq in dir.MoveToEnd(checkingSquare).TakeWhile(sq => !sq.Equals(_friendlyKing))) {
                     _squaresBlockingCheck.Add(sq);
                 }
             }
@@ -285,26 +335,27 @@ namespace Core {
                 var checkingPiece = _board.GetPiece(checkingSquare);
                 if (Piece.Type(checkingPiece) is Piece.Queen or Piece.Bishop or Piece.Rook) {
                     // Mark the spaces behind the king as attacked to prevent king from moving there
-                    var dRank = _friendlyKing.rank - checkingSquare.rank;
-                    var dFile = _friendlyKing.file - checkingSquare.file;
+                    var dRank = _friendlyKing.Rank - checkingSquare.Rank;
+                    var dFile = _friendlyKing.File - checkingSquare.File;
                     var dir = new Direction(Math.Clamp(dFile, -1, 1), Math.Clamp(dRank, -1, 1));
                     foreach (var sq in dir
-                                 .MoveUntil(_friendlyKing, sq => !_board.IsEmpty(sq), includeStopSquare: true)) {
-                        _attackedSquares[sq.file, sq.rank]++;
+                                 .MoveToEnd(_friendlyKing)
+                                 .TakeWhile(_board.IsEmpty)) {
+                        _attackedSquares[sq.File, sq.Rank]++;
                     }
                 }
             });
         }
 
-        public IEnumerable<Coord> GetAttackedSquares(Coord square) {
+        public IEnumerable<Coord> GetThreats(Coord square) {
             var piece = _board.GetPiece(square);
             return Piece.Type(piece) switch {
-                Piece.Pawn => GeneratePawnAttacks(square),
-                Piece.Knight => GenerateKnightMoves(square),
-                Piece.Queen => GenerateQueenMoves(square),
-                Piece.Rook => GenerateRookMoves(square),
-                Piece.Bishop => GenerateBishopMoves(square),
-                Piece.King => GenerateKingMoves(square),
+                Piece.Pawn => GetPawnThreats(square),
+                Piece.Knight => GetKnightThreats(square),
+                Piece.Queen => GetQueenThreats(square),
+                Piece.Rook => GetRookThreats(square),
+                Piece.Bishop => GetBishopThreats(square),
+                Piece.King => GetKingThreats(square),
                 _ => new List<Coord>()
             };
         }
@@ -314,23 +365,43 @@ namespace Core {
                 return _ => true;
             }
 
-            var dRank = _friendlyKing.rank - square.rank;
-            var dFile = _friendlyKing.file - square.file;
+            var dRank = _friendlyKing.Rank - square.Rank;
+            var dFile = _friendlyKing.File - square.File;
             var dir = new Direction(Math.Clamp(dFile, -1, 1), Math.Clamp(dRank, -1, 1)); // Direction towards the king
             if (dir is { IsDiagonal: false, IsCardinal: false }) {
                 return _ => true;
             }
 
             // Towards the king
-            List<Coord> pathToKing = dir.MoveUntil(square, _friendlyKing.Equals).ToList();
-            if (pathToKing.Any(c => _board.GetPiece(c) != Piece.None)) {
-                // Another piece is blocking the path to the king
-                return _ => true;
+            List<Coord> pathToKing = new List<Coord>();
+            foreach (Coord sq in dir.MoveToEnd(square)) {
+                if (sq.Equals(_friendlyKing)) {
+                    break;
+                }
+
+                if (_board.IsEmpty(sq)) {
+                    pathToKing.Add(sq);
+                }
+                else {
+                    // Another piece is blocking the path to the king
+                    return _ => true;
+                }
             }
 
+            dir.MoveToEnd(square).TakeWhile(sq => _board.IsEmpty(sq)).ToList();
+
             // Away from the king
-            List<Coord> pathAwayFromKing = dir.Reverse()
-                .MoveUntil(square, sq => _board.GetPiece(sq) != Piece.None, includeStopSquare: true).ToList();
+            List<Coord> pathAwayFromKing = new List<Coord>();
+            foreach (Coord sq in dir.Reverse().MoveToEnd(square)) {
+                if (_board.IsEmpty(sq)) {
+                    pathAwayFromKing.Add(sq);
+                }
+                else {
+                    pathAwayFromKing.Add(sq); // Include the first piece encountered
+                    break;
+                }
+            }
+
             if (pathAwayFromKing.Count == 0) {
                 return _ => true;
             }
@@ -355,7 +426,7 @@ namespace Core {
             Refresh();
             var total = 0;
             foreach (var move in ValidMoves()) {
-                _board.MakeMove(move);
+                _board.CommitMove(move);
                 total += CountMoves(depth - 1);
                 _board.UndoMove(move);
             }
@@ -369,7 +440,7 @@ namespace Core {
                 .WithCancellation(cancellationToken)
                 .Select(move => {
                     var copy = _board.Clone();
-                    return copy.MakeMove(move)
+                    return copy.CommitMove(move)
                         ? new MoveGenerator(copy).CountMoves(depth - 1)
                         : // sequential below root
                         1;
@@ -381,7 +452,7 @@ namespace Core {
             var queue = new ConcurrentQueue<(Board board, int d)>();
             foreach (var move in ValidMoves()) {
                 var copy = _board.Clone();
-                if (copy.MakeMove(move))
+                if (copy.CommitMove(move))
                     queue.Enqueue((copy, depth - 1));
             }
 
@@ -408,7 +479,7 @@ namespace Core {
                     var gen = new MoveGenerator(b);
                     foreach (var mv in gen.ValidMoves()) {
                         var child = b.Clone();
-                        child.MakeMove(mv);
+                        child.CommitMove(mv);
 
                         int nd = d - 1;
                         if (nd == 0) {
@@ -428,6 +499,11 @@ namespace Core {
             });
 
             return total;
+        }
+
+        public bool ValidateMove(Coord from, Coord to, out Move? validMove) {
+            validMove = ValidMovesForSquare(from).FirstOrDefault(move => move.To.Equals(to));
+            return validMove != null;
         }
     }
 }

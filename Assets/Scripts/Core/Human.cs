@@ -10,10 +10,12 @@ namespace Core {
         private Coord _selectedPieceSquare;
         private int _selectedPiece;
         private bool _isDraggingPiece;
+        private MoveGenerator _moveGenerator;
 
-        public Human(Board board, BoardUI boardUI) {
+        public Human(Board board, BoardUI boardUI, MoveGenerator moveGenerator) {
             _board = board;
             _boardUI = boardUI;
+            _moveGenerator = moveGenerator;
         }
 
         public void Update() {
@@ -34,7 +36,7 @@ namespace Core {
 
         private void HandleSelectSquare(Coord square) {
             _boardUI.ResetSquares();
-            var piece = _board.GetPiece(square.file, square.rank);
+            var piece = _board.GetPiece(square.File, square.Rank);
             if (piece != Piece.None) {
                 _selectedPieceSquare = square;
                 _selectedPiece = piece;
@@ -44,7 +46,7 @@ namespace Core {
                 else {
                     var moveGenerator = new MoveGenerator(_board);
                     _boardUI.HighlightThreats(square);
-                    foreach (var attackedSquare in moveGenerator.GetAttackedSquares(square))
+                    foreach (var attackedSquare in moveGenerator.GetThreats(square))
                         _boardUI.HighlightSquare(attackedSquare);
                 }
 
@@ -58,8 +60,10 @@ namespace Core {
                 _isDraggingPiece = false;
 
                 if (_boardUI.TryGetSquareUnderMouse(out Coord targetSquare)) {
-                    var move = new Move(_selectedPieceSquare, targetSquare, _board.GetPiece(targetSquare));
-                    if (_board.MakeMove(move)) {
+                    if (targetSquare.Equals(_selectedPieceSquare)) return;
+                    if (_moveGenerator.ValidateMove(_selectedPieceSquare, targetSquare, out Move? validMove)) {
+                        _board.CommitMove(validMove.Value);
+                        _moveGenerator.Refresh();
                         _boardUI.ResetSquares();
                         _boardUI.UpdatePosition(_board);
                     }

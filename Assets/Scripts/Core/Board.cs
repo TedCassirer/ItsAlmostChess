@@ -8,11 +8,21 @@ namespace Core {
 
         public int ColorToMove => IsWhitesTurn ? Piece.White : Piece.Black;
         public int OpponentColor => IsWhitesTurn ? Piece.Black : Piece.White;
-        
+        public Coord? EnPassantTarget;
+
         public void LoadFENPosition(string fen) {
             var rank = 7;
             var file = 0;
-            foreach (var symbol in fen)
+            Array.Clear(_squares, 0, _squares.Length);
+            string[] parts = fen.Split(' ');
+            string boardPlacement = parts[0];
+            IsWhitesTurn = parts[1] == "w";
+            string castlingRights = parts[2];
+            EnPassantTarget = parts[3] != "-" ? Coord.Parse(parts[3]) : null;
+            int halfmoveClock = int.Parse(parts[4]);
+            int fullmoveNumber = int.Parse(parts[5]);
+
+            foreach (var symbol in boardPlacement)
                 if (symbol == '/') {
                     rank--;
                     file = 0;
@@ -25,35 +35,44 @@ namespace Core {
                     _squares[file, rank] = piece;
                     file++;
                 }
-
         }
 
         public int GetPiece(Coord coord) {
-            return GetPiece(coord.file, coord.rank);
+            return GetPiece(coord.File, coord.Rank);
         }
 
         public int GetPiece(int file, int rank) {
             return _squares[file, rank];
         }
 
-        public bool MakeMove(Move move) {
-            _squares[move.To.file, move.To.rank] = _squares[move.From.file, move.From.rank];
-            _squares[move.From.file, move.From.rank] = Piece.None;
+        public bool CommitMove(Move move) {
+            _squares[move.To.File, move.To.Rank] = _squares[move.From.File, move.From.Rank];
+            _squares[move.From.File, move.From.Rank] = Piece.None;
+            if (move.PromotionPiece != Piece.None) {
+                // Handle promotion
+                _squares[move.To.File, move.To.Rank] = move.PromotionPiece;
+            }
+            if (move.IsEnPassant) {
+                var capturedPawnSquare = move.EnPassantCapturedPawnSquare.Value;
+                _squares[capturedPawnSquare.File, capturedPawnSquare.Rank] = Piece.None;
+            }
+
             IsWhitesTurn ^= true;
             return true;
         }
 
         public void UndoMove(Move move) {
-            _squares[move.From.file, move.From.rank] = _squares[move.To.file, move.To.rank];
-            _squares[move.To.file, move.To.rank] = move.CapturedPiece;
+            _squares[move.From.File, move.From.Rank] = _squares[move.To.File, move.To.Rank];
+            _squares[move.To.File, move.To.Rank] = move.CapturedPiece;
             if (move.PromotionPiece != Piece.None) {
                 // Revert promotion
-                _squares[move.From.file, move.From.rank] = Piece.Pawn | Piece.Color(move.PromotionPiece);
+                _squares[move.From.File, move.From.Rank] = Piece.Pawn | Piece.Color(move.PromotionPiece);
             }
+
             IsWhitesTurn ^= true;
         }
-        
-        
+
+
         public Board Clone() {
             var newBoard = new Board();
             Array.Copy(_squares, newBoard._squares, _squares.Length);
@@ -75,13 +94,13 @@ namespace Core {
                 }
             }
 
-            throw new Exception("Couldn't find the target king piece");
+            return Coord.Invalid;
         }
 
         public bool IsEmpty(Coord sq) {
             return GetPiece(sq) == Piece.None;
         }
-        
+
         public Coord FindPiece(int piece) {
             for (var file = 0; file < 8; file++) {
                 for (var rank = 0; rank < 8; rank++) {
@@ -90,6 +109,7 @@ namespace Core {
                     }
                 }
             }
+
             throw new Exception("Couldn't find the target piece");
         }
     }

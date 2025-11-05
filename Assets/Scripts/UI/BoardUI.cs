@@ -86,7 +86,7 @@ public class BoardUI : MonoBehaviour {
     }
 
     public BoardSquare GetSquare(Coord coord) {
-        return _squares[coord.file, coord.rank];
+        return _squares[coord.File, coord.Rank];
     }
 
     public void DeselectSquares() {
@@ -104,7 +104,7 @@ public class BoardUI : MonoBehaviour {
 
     public void HighlightThreats(Coord square) {
         var generator = new MoveGenerator(_board);
-        foreach (var attackedSquare in generator.GetAttackedSquares(square))
+        foreach (var attackedSquare in generator.GetThreats(square))
             GetSquare(attackedSquare).SetHighlighted(true);
     }
 
@@ -117,15 +117,15 @@ public class BoardUI : MonoBehaviour {
     }
 
     public void DragPiece(Coord square) {
-        var piece = _squarePieceRenderers[square.file, square.rank];
+        var piece = _squarePieceRenderers[square.File, square.Rank];
         Vector2 mousePos = _cam.ScreenToWorldPoint(Mouse.current.position.ReadValue());
 
         piece.transform.position = new Vector3(mousePos.x, mousePos.y, PieceDragDepth);
     }
 
     public void ReleasePiece(Coord square) {
-        var origPosition = _squares[square.file, square.rank].transform.position;
-        var piece = _squarePieceRenderers[square.file, square.rank].transform;
+        var origPosition = _squares[square.File, square.Rank].transform.position;
+        var piece = _squarePieceRenderers[square.File, square.Rank].transform;
         piece.position = new Vector3(origPosition.x, origPosition.y, PieceDepth);
     }
 }
