@@ -8,7 +8,7 @@ namespace Core {
 
         public int ColorToMove => IsWhitesTurn ? Piece.White : Piece.Black;
         public int OpponentColor => IsWhitesTurn ? Piece.Black : Piece.White;
-
+        
         public void LoadFENPosition(string fen) {
             var rank = 7;
             var file = 0;
@@ -37,16 +37,22 @@ namespace Core {
         }
 
         public bool MakeMove(Move move) {
-            var moveGenerator = new MoveGenerator(this);
-            var isValid = moveGenerator.ValidMovesForSquare(move.from).Exists(m => m.Equals(move));
-
-            if (!isValid) return false;
-            _squares[move.to.file, move.to.rank] = _squares[move.from.file, move.from.rank];
-            _squares[move.from.file, move.from.rank] = Piece.None;
-
+            _squares[move.To.file, move.To.rank] = _squares[move.From.file, move.From.rank];
+            _squares[move.From.file, move.From.rank] = Piece.None;
             IsWhitesTurn ^= true;
             return true;
         }
+
+        public void UndoMove(Move move) {
+            _squares[move.From.file, move.From.rank] = _squares[move.To.file, move.To.rank];
+            _squares[move.To.file, move.To.rank] = move.CapturedPiece;
+            if (move.PromotionPiece != Piece.None) {
+                // Revert promotion
+                _squares[move.From.file, move.From.rank] = Piece.Pawn | Piece.Color(move.PromotionPiece);
+            }
+            IsWhitesTurn ^= true;
+        }
+        
         
         public Board Clone() {
             var newBoard = new Board();

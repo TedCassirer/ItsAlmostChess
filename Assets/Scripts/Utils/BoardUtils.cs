@@ -17,5 +17,9 @@ namespace Utils {
         public static bool IsPawnStartRank(int rank, int piece) {
             return Piece.IsColor(piece, Piece.White) ? rank == 1 : rank == 6;
         }
+
+        public static bool IsPromotionRank(int toRank, int piece) {
+            return Piece.IsColor(piece, Piece.White) ? toRank == 7 : toRank == 0;
+        }
     }
 }

@@ -54,9 +54,9 @@ namespace Core {
     public class MoveGenerator {
         private readonly Board _board;
         private readonly int[,] _attackedSquares = new int[8, 8];
-        private readonly Coord _friendlyKing;
+        private Coord _friendlyKing;
         private readonly List<Coord> _checkingPieces = new();
-        private readonly HashSet<Coord> _squaresStoppingCheck = new();
+        private readonly HashSet<Coord> _squaresBlockingCheck = new();
         private bool InCheck => _checkingPieces.Count > 0;
         private bool InDoubleCheck => _checkingPieces.Count >= 2;
 
@@ -70,6 +70,13 @@ namespace Core {
 
         public MoveGenerator(Board board) {
             _board = board;
+            Refresh();
+        }
+        
+        private void Refresh() {
+            Array.Clear(_attackedSquares, 0, _attackedSquares.Length);
+            _checkingPieces.Clear();
+            _squaresBlockingCheck.Clear();
             _friendlyKing = _board.GetFriendlyKing();
             CalculateAttackedData();
         }
@@ -93,26 +100,8 @@ namespace Core {
             if (InDoubleCheck) {
                 // Double check, we must move the king.
                 targetSquares = Piece.Type(piece) == Piece.King ? GenerateKingMoves(square) : new List<Coord>();
-            }
-            else if (InCheck) {
+            } else {
                 // Only keep moves that stops check
-                if (Piece.Type(piece) == Piece.King) {
-                    targetSquares = GenerateKingMoves(square);
-                }
-                else {
-                    targetSquares = (Piece.Type(piece) switch {
-                        Piece.Pawn => GeneratePawnAttacks(square)
-                            .Where(ts => _board.IsPieceColor(ts, _board.OpponentColor))
-                            .Concat(GeneratePawnMoves(square)),
-                        Piece.Knight => GenerateKnightMoves(square),
-                        Piece.Queen => GenerateQueenMoves(square),
-                        Piece.Rook => GenerateRookMoves(square),
-                        Piece.Bishop => GenerateBishopMoves(square),
-                        _ => new List<Coord>()
-                    }).Where(sq => _squaresStoppingCheck.Contains(sq));
-                }
-            }
-            else {
                 targetSquares = Piece.Type(piece) switch {
                     Piece.Pawn => GeneratePawnAttacks(square)
                         .Where(ts => _board.IsPieceColor(ts, _board.OpponentColor))
@@ -124,6 +113,9 @@ namespace Core {
                     Piece.King => GenerateKingMoves(square),
                     _ => new List<Coord>()
                 };
+                if (InCheck && !square.Equals(_friendlyKing)) {
+                    targetSquares = targetSquares.Where(ts => _squaresBlockingCheck.Contains(ts));
+                }
             }
 
             return targetSquares
@@ -132,12 +124,30 @@ namespace Core {
                     var tsPiece = _board.GetPiece(ts);
                     return tsPiece == Piece.None || Piece.IsColor(tsPiece, _board.OpponentColor);
                 })
-                .Select(ts => CreateMove(square, ts)).ToList();
+                .Select(ts => CreateMove(square, ts))
+                .SelectMany(ts => {
+                    if (Piece.Type(piece) == Piece.Pawn &&
+                        BoardUtils.IsPromotionRank(ts.To.rank, piece)) {
+                        return new List<Move> {
+                            new(ts.From, ts.To, capturedPiece: ts.CapturedPiece,
+                                promotionPiece: Piece.Queen | _board.ColorToMove),
+                            new(ts.From, ts.To, capturedPiece: ts.CapturedPiece,
+                                promotionPiece: Piece.Rook | _board.ColorToMove),
+                            new(ts.From, ts.To, capturedPiece: ts.CapturedPiece,
+                                promotionPiece: Piece.Bishop | _board.ColorToMove),
+                            new(ts.From, ts.To, capturedPiece: ts.CapturedPiece,
+                                promotionPiece: Piece.Knight | _board.ColorToMove)
+                        };
+                    }
+
+                    return new List<Move> { ts };
+                })
+                .ToList();
         }
 
+
         private Move CreateMove(Coord from, Coord to) {
-            // TODO: Check if promotion
-            return new Move(from, to, _board.GetPiece(to) != Piece.None);
+            return new Move(from, to, _board.GetPiece(to));
         }
 
         private IEnumerable<Coord> GeneratePawnMoves(Coord square) {
@@ -258,7 +268,7 @@ namespace Core {
                 Coord checkingSquare = _checkingPieces[0];
                 var checkingPiece = _board.GetPiece(checkingSquare);
                 if (Piece.Type(checkingPiece) == Piece.Knight) {
-                    _squaresStoppingCheck.Add(checkingSquare);
+                    _squaresBlockingCheck.Add(checkingSquare);
                     return;
                 }
 
@@ -267,7 +277,7 @@ namespace Core {
                 var dir = new Direction(Math.Clamp(dFile, -1, 1), Math.Clamp(dRank, -1, 1));
                 foreach (Coord sq in dir.MoveUntil(checkingSquare, includeStartSquare: true)
                              .TakeWhile(sq => !sq.Equals(_friendlyKing))) {
-                    _squaresStoppingCheck.Add(sq);
+                    _squaresBlockingCheck.Add(sq);
                 }
             }
 
@@ -344,9 +354,11 @@ namespace Core {
             if (depth == 0) return 1;
             var total = 0;
             foreach (var move in ValidMoves()) {
-                var copy = _board.Clone();
-                if (!copy.MakeMove(move)) continue;
-                total += new MoveGenerator(copy).CountMoves(depth - 1);
+                _board.MakeMove(move);
+                Refresh();
+                total += CountMoves(depth - 1);
+                _board.UndoMove(move);
+                Refresh();
             }
 
             return total;

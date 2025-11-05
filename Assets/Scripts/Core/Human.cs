@@ -58,8 +58,7 @@ namespace Core {
                 _isDraggingPiece = false;
 
                 if (_boardUI.TryGetSquareUnderMouse(out Coord targetSquare)) {
-                    var isCapture = Piece.IsOppositeColor(_selectedPiece, _board.GetPiece(targetSquare));
-                    var move = new Move(_selectedPieceSquare, targetSquare, isCapture);
+                    var move = new Move(_selectedPieceSquare, targetSquare, _board.GetPiece(targetSquare));
                     if (_board.MakeMove(move)) {
                         _boardUI.ResetSquares();
                         _boardUI.UpdatePosition(_board);

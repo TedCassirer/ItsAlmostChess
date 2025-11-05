@@ -31,14 +31,14 @@ namespace Tests {
         public void CaptureToAvoidCheck() {
             List<Move> moves = MovesFor(KingInCheckPosition, Piece.Rook | Piece.White);
             Assert.That(moves.Count, Is.EqualTo(1));
-            Assert.That(moves[0].isCapture);
+            Assert.That(moves[0].CapturedPiece == (Piece.Rook | Piece.Black));
         }
 
         [Test]
         public void BlockCheckWithBishop() {
             List<Move> moves = MovesFor(KingInCheckPosition, Piece.Bishop | Piece.White);
             Assert.That(moves.Count, Is.EqualTo(2));
-            Assert.That(moves.Count(m => m.isCapture), Is.EqualTo(1));
+            Assert.That(moves.Count(m => m.CapturedPiece != Piece.None), Is.EqualTo(1));
         }
 
         [Test]
@@ -69,22 +69,28 @@ namespace Tests {
         public void PawnPromotionMoves() {
             List<Move> moves = MovesFor(PawnPromotionPosition, Piece.Pawn | Piece.White);
             Assert.That(moves.Count, Is.EqualTo(4));
-            Assert.That(moves.Select(m => m.promotionPiece).Distinct().Count(), Is.EqualTo(4));
+            Assert.That(moves.Select(m => m.PromotionPiece).Distinct().Count(), Is.EqualTo(4));
             Assert.That(moves.All(m =>
-                Piece.Type(m.promotionPiece) is Piece.Queen or Piece.Rook or Piece.Bishop or Piece.Knight));
+                Piece.Type(m.PromotionPiece) is Piece.Queen or Piece.Rook or Piece.Bishop or Piece.Knight));
         }
           
         [TestCase(1, 20)]
         [TestCase(2, 400)]
         [TestCase(3, 8_902)]
         [TestCase(4, 197_281)]
-        [TestCase(5, 4_865_609)] // Got 4_865_167, 1 min 27 seconds with root split parallel, 54s with ConcurrentQueue
+        // [TestCase(5, 4_865_609, 600_000)] // Got 4_865_167, 1 min 27 seconds with root split parallel, 54s with ConcurrentQueue
+        // [TestCase(6, 119_060_324, 300_000_000)]
         public void ShannonNumberCalculation(int depth, int expectedMoves, int timeoutMs = 5_000) {
+            
+            /***
+             * For 5, got 4_865_167, 1 min 27 seconds with root split parallel, 54s with ConcurrentQueue.
+             * Some optimizations later it's down to 8 seconds. Still copying the board for each move though.
+             */
             Load(StartingPosition);
             CancellationTokenSource source = new CancellationTokenSource();
             CancellationToken token = source.Token;
             source.CancelAfter(timeoutMs);
-            var moveCount = generator.CountMovesWithConcurrentQueue(depth, token);
+            var moveCount = generator.CountMovesParallel(depth, token);
             Assert.That(moveCount, Is.EqualTo(expectedMoves));
         }
     }

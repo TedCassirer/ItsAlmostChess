@@ -99,7 +99,7 @@ public class BoardUI : MonoBehaviour {
 
     public void HighlightValidMoves(Coord square) {
         var generator = new MoveGenerator(_board);
-        foreach (var move in generator.ValidMovesForSquare(square)) GetSquare(move.to).ShowMoveMarker(true);
+        foreach (var move in generator.ValidMovesForSquare(square)) GetSquare(move.To).ShowMoveMarker(true);
     }
 
     public void HighlightThreats(Coord square) {
