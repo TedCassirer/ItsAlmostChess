@@ -1,6 +1,5 @@
 using Core;
 using UI;
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using Utils;
@@ -9,6 +8,7 @@ public class BoardUI : MonoBehaviour {
     public bool showThreats;
 
     private Board _board;
+    private MoveGenerator _moveGenerator;
     private readonly BoardSquare[,] _squares = new BoardSquare[8, 8];
     private readonly SpriteRenderer[,] _squarePieceRenderers = new SpriteRenderer[8, 8];
 
@@ -22,10 +22,11 @@ public class BoardUI : MonoBehaviour {
 
     private void Awake() {
         _cam = Camera.main;
-        CreateBoardUI();
     }
 
+    [ContextMenu("Create Board UI")]
     private void CreateBoardUI() {
+        DeleteBoardUI();
         var boardGO = new GameObject("Chess board");
         boardGO.transform.parent = transform;
         boardGO.transform.position = new Vector3(-3.5f, -3.5f, 0f);
@@ -33,31 +34,61 @@ public class BoardUI : MonoBehaviour {
         for (var file = 0; file < 8; file++) {
             var squareGO = new GameObject(BoardUtils.SquareName(file, rank));
             squareGO.transform.SetParent(boardGO.transform, false);
+            var square = BoardSquare.Create(squareGO, Coord.Create(file, rank), boardTheme);
             squareGO.transform.localPosition = new Vector3(file, rank, 0f);
-            var square = squareGO.transform.AddComponent<BoardSquare>();
-            square.Init(Coord.Create(file, rank), boardTheme);
+            squareGO.transform.localScale = Vector3.one;
 
-            var pieceGO = new GameObject("Piece");
-            pieceGO.transform.SetParent(squareGO.transform, false);
-            var pieceRenderer = pieceGO.AddComponent<SpriteRenderer>();
+            var pieceGo = new GameObject("Piece");
+
+            var pieceRenderer = pieceGo.AddComponent<SpriteRenderer>();
+            pieceRenderer.transform.SetParent(squareGO.transform, false);
             pieceRenderer.transform.localPosition = new Vector3(0f, 0f, PieceDepth);
             pieceRenderer.transform.localScale = Vector3.one / PieceScale;
 
             _squares[file, rank] = square;
             _squarePieceRenderers[file, rank] = pieceRenderer;
+
+            square.ApplyTheme(boardTheme);
         }
-
-
-        ResetSquares();
-
-        Debug.Log("Done");
     }
 
-    public void Update() {
+    void DeleteBoardUI() {
+        foreach (Transform child in transform) {
+            DestroyImmediate(child.gameObject);
+        }
+    }
+
+
+    void OnEnable() {
+        // Subscribe to theme change
+        CreateBoardUI();
+        if (boardTheme != null)
+            boardTheme.Changed += OnThemeChanged;
+    }
+
+    void OnDisable() {
+        // Always unsubscribe to avoid leaks
+        if (boardTheme != null)
+            boardTheme.Changed -= OnThemeChanged;
+        DeleteBoardUI();
+    }
+
+
+#if UNITY_EDITOR
+    private void OnValidate() {
+        OnThemeChanged();
+    }
+#endif
+
+    private void OnThemeChanged() {
+        Debug.Log("Theme changed!");
+        foreach (var square in GetComponentsInChildren<BoardSquare>(true))
+            square.ApplyTheme(boardTheme);
     }
 
     public void UpdatePosition(Board board) {
         _board = board;
+        _moveGenerator = new MoveGenerator(board);
         for (var rank = 0; rank < 8; rank++)
         for (var file = 0; file < 8; file++) {
             var piece = board.GetPiece(file, rank);
@@ -119,13 +150,11 @@ public class BoardUI : MonoBehaviour {
     public void DragPiece(Coord square) {
         var piece = _squarePieceRenderers[square.File, square.Rank];
         Vector2 mousePos = _cam.ScreenToWorldPoint(Mouse.current.position.ReadValue());
-
         piece.transform.position = new Vector3(mousePos.x, mousePos.y, PieceDragDepth);
     }
 
     public void ReleasePiece(Coord square) {
-        var origPosition = _squares[square.File, square.Rank].transform.position;
         var piece = _squarePieceRenderers[square.File, square.Rank].transform;
-        piece.position = new Vector3(origPosition.x, origPosition.y, PieceDepth);
+        piece.localPosition = new Vector3(0, 0, PieceDepth);
     }
 }

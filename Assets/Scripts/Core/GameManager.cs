@@ -2,38 +2,31 @@ using UnityEngine;
 
 namespace Core {
     public class GameManager : MonoBehaviour {
-        private BoardUI _boardUI;
-        private Board _board;
+        [SerializeField] private BoardUI boardUI;
+        private static Board _board = new();
+        private static MoveGenerator _moveGenerator = new(_board);
         private Human _human;
-        private MoveGenerator _moveGenerator;
 
-        private string startingPosition = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
+        [SerializeField] private string startingPosition = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
 
-        private void Awake() {
-            _board = new Board();
-            _boardUI = FindFirstObjectByType<BoardUI>();
-            _moveGenerator = new MoveGenerator(_board);
-            _human = new Human(_board, _boardUI, _moveGenerator);
-        }
-
-        public void Start() {
+        private void OnEnable() {
+            boardUI = FindFirstObjectByType<BoardUI>();
             _board.LoadFENPosition(startingPosition);
-            _boardUI.UpdatePosition(_board);
+            boardUI.UpdatePosition(_board);
             _moveGenerator.Refresh();
+            _human = new Human(_board, boardUI, _moveGenerator);
         }
-        
+
         [ContextMenu("Reset Game")]
         public void ResetGame() {
             Debug.Log("Resetting game...");
             _board.LoadFENPosition(startingPosition);
             _moveGenerator.Refresh();
-            _boardUI.ResetSquares();
-            _boardUI.UpdatePosition(_board);
+            boardUI.UpdatePosition(_board);
         }
 
-
         public void Update() {
-            _human.Update();
+            _human?.Update();
         }
     }
 }

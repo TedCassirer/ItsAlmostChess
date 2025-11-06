@@ -1,14 +1,10 @@
-﻿using System.Linq;
-using UnityEditor;
-using UnityEngine;
-using UnityEngine.InputSystem;
+﻿using UnityEngine.InputSystem;
 
 namespace Core {
     public class Human {
         private readonly BoardUI _boardUI;
         private readonly Board _board;
         private Coord _selectedPieceSquare;
-        private int _selectedPiece;
         private bool _isDraggingPiece;
         private MoveGenerator _moveGenerator;
 
@@ -39,14 +35,13 @@ namespace Core {
             var piece = _board.GetPiece(square.File, square.Rank);
             if (piece != Piece.None) {
                 _selectedPieceSquare = square;
-                _selectedPiece = piece;
                 if (Piece.IsColor(piece, _board.IsWhitesTurn ? Piece.White : Piece.Black)) {
                     _boardUI.HighlightValidMoves(_selectedPieceSquare);
                 }
                 else {
                     var moveGenerator = new MoveGenerator(_board);
                     _boardUI.HighlightThreats(square);
-                    foreach (var attackedSquare in moveGenerator.GetThreats(square))
+                    foreach (Coord attackedSquare in moveGenerator.GetThreats(square))
                         _boardUI.HighlightSquare(attackedSquare);
                 }
 

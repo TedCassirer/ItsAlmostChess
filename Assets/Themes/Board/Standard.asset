@@ -12,15 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: adb429420e7a4351851d6136a1d19082, type: 3}
   m_Name: Standard
   m_EditorClassIdentifier: Assembly-CSharp::UI.BoardTheme
+  shader: {fileID: 10755, guid: 0000000000000000f000000000000000, type: 0}
   lightSquares:
     normal: {r: 0.94, g: 0.846, b: 0.752, a: 0}
-    legal: {r: 0, g: 0, b: 0, a: 0}
-    selected: {r: 0.78, g: 0.17160001, b: 0.17160001, a: 0.29803923}
-    moveFromHighlight: {r: 0, g: 0, b: 0, a: 0}
-    moveToHighlight: {r: 0, g: 0, b: 0, a: 0}
+    highlighted: {r: 0.46226418, g: 0.11120505, b: 0.11120505, a: 1}
   darkSquares:
     normal: {r: 0.66, g: 0.47520003, b: 0.396, a: 0}
-    legal: {r: 0, g: 0, b: 0, a: 0}
-    selected: {r: 0.7830187, g: 0.17359367, b: 0.17359367, a: 0.29803923}
-    moveFromHighlight: {r: 0, g: 0, b: 0, a: 0}
-    moveToHighlight: {r: 0, g: 0, b: 0, a: 0}
+    highlighted: {r: 0.4339623, g: 0.2763439, b: 0.2763439, a: 1}

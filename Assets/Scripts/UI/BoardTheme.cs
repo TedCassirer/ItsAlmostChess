@@ -1,27 +1,30 @@
-﻿using Core;
+﻿using System;
+using Core;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace UI {
     [CreateAssetMenu(menuName = "Theme/Board")]
     public class BoardTheme : ScriptableObject {
-        public SquareColours lightSquares;
-        public SquareColours darkSquares;
+        public Shader shader;
+        public SquareColours lightSquares, darkSquares;
 
-        [System.Serializable]
+        public event Action Changed;
+
+        [Serializable]
         public struct SquareColours {
             public Color normal;
-            public Color legal;
-            public Color selected;
-            public Color moveFromHighlight;
-            public Color moveToHighlight;
+            [FormerlySerializedAs("selected")] public Color highlighted;
         }
 
-        public Color Normal(Coord coord) {
-            return coord.IsLightSquare() ? lightSquares.normal : darkSquares.normal;
-        }
+        public Color Normal(Coord c) => c.IsLightSquare() ? lightSquares.normal : darkSquares.normal;
+        public Color Highlighted(Coord c) => c.IsLightSquare() ? lightSquares.highlighted : darkSquares.highlighted;
 
-        public Color Selected(Coord coord) {
-            return coord.IsLightSquare() ? lightSquares.selected : darkSquares.selected;
+#if UNITY_EDITOR
+        void OnValidate() {
+            // fires when values change in inspector
+            Changed?.Invoke();
         }
+#endif
     }
 }

@@ -1,57 +1,68 @@
 ﻿using Core;
-using UI;
 using UnityEngine;
 
-public class BoardSquare : MonoBehaviour {
-    // base square
-    private MeshRenderer _square;
+namespace UI {
+    public class BoardSquare : MonoBehaviour {
+        private MeshRenderer _square, _highlight, _moveMarker;
+        private Coord _coord;
 
-    // highlight (overlay quad)
-    private MeshRenderer _highlight;
+        public static BoardSquare Create(GameObject parent, Coord coord, BoardTheme boardTheme) {
+            var square = parent.AddComponent<BoardSquare>();
+            square.tag = "BoardSquare";
+            square.Init(coord, boardTheme);
+            square.ApplyTheme(boardTheme);
+            return square;
+        }
 
-    // move marker (small dot in center)
-    private MeshRenderer _moveMarker;
+        private void Init(Coord coord, BoardTheme theme) {
+            _coord = coord;
 
-    public void Init(Coord coord, BoardTheme theme) {
-        var shader = Shader.Find("Unlit/Color");
-        // base square
-        var square = GameObject.CreatePrimitive(PrimitiveType.Quad);
-        square.name = "Square";
-        square.transform.SetParent(transform, false);
-        _square = square.GetComponent<MeshRenderer>();
-        _square.material = new Material(shader) {
-            color = theme.Normal(coord)
-        };
+            var shader = Shader.Find("Unlit/Color");
+            // base square
+            var square = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            square.name = "Square";
+            square.transform.SetParent(transform, false);
+            _square = square.GetComponent<MeshRenderer>();
+            _square.sharedMaterial = new Material(theme.shader) {
+                color = theme.Normal(coord)
+            };
 
-        // highlight quad
-        var highlightObj = GameObject.CreatePrimitive(PrimitiveType.Quad);
-        highlightObj.name = "Highlight";
-        highlightObj.transform.SetParent(transform, false);
-        highlightObj.transform.localPosition = new Vector3(0, 0, -0.002f);
-        _highlight = highlightObj.GetComponent<MeshRenderer>();
-        _highlight.sharedMaterial = new Material(shader) {
-            color = theme.Selected(coord)
-        };
-        _highlight.enabled = false;
+            // highlight quad
+            var highlightObj = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            highlightObj.name = "Highlight";
+            highlightObj.transform.SetParent(transform, false);
+            highlightObj.transform.localPosition = new Vector3(0, 0, -0.002f);
+            _highlight = highlightObj.GetComponent<MeshRenderer>();
+            _highlight.sharedMaterial = new Material(theme.shader) {
+                color = theme.Highlighted(coord)
+            };
+            _highlight.enabled = false;
 
-        // move marker circle 
-        var marker = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        marker.name = "Move Marker";
-        marker.transform.SetParent(transform, false);
-        marker.transform.localPosition = new Vector3(0, 0, -0.2f);
-        marker.transform.localScale = new Vector3(0.3f, 0.3f, 0f);
-        _moveMarker = marker.GetComponent<MeshRenderer>();
-        _moveMarker.sharedMaterial = new Material(shader) {
-            color = new Color(0.5f, 0.5f, 0.5f, 0.3f)
-        };
-        _moveMarker.enabled = false;
-    }
+            // move marker circle 
+            var marker = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            marker.name = "Move Marker";
+            marker.transform.SetParent(transform, false);
+            marker.transform.localPosition = new Vector3(0, 0, -0.2f);
+            marker.transform.localScale = new Vector3(0.3f, 0.3f, 0f);
+            _moveMarker = marker.GetComponent<MeshRenderer>();
+            _moveMarker.sharedMaterial = new Material(shader) {
+                color = new Color(0.5f, 0.5f, 0.5f, 0.3f)
+            };
+            _moveMarker.enabled = false;
+        }
 
-    public void SetHighlighted(bool on) {
-        _highlight.enabled = on;
-    }
+        public void ApplyTheme(BoardTheme theme) {
+            if (_square == null || _highlight == null) return;
+            _square.sharedMaterial = new Material(theme.shader) {
+                color = theme.Normal(_coord)
+            };
 
-    public void ShowMoveMarker(bool on) {
-        _moveMarker.enabled = on;
+            _highlight.sharedMaterial = new Material(theme.shader) {
+                color = theme.Highlighted(_coord)
+            };
+        }
+
+        public void SetHighlighted(bool on) => _highlight.enabled = on;
+        public void ShowMoveMarker(bool on) => _moveMarker.enabled = on;
     }
 }
