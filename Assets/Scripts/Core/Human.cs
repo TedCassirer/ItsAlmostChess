@@ -7,9 +7,9 @@ namespace Core {
         private Coord _selectedPieceSquare;
         private bool _isDraggingPiece;
         private MoveGenerator _moveGenerator;
-        private bool _isTurnToPlay = false;
+        private bool _isTurnToPlay;
 
-        public Human(Board board, BoardUI boardUI, MoveGenerator moveGenerator) {
+        public Human(Board board, BoardUI boardUI, MoveGenerator moveGenerator) : base(board) {
             _board = board;
             _boardUI = boardUI;
             _moveGenerator = moveGenerator;

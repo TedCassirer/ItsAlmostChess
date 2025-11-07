@@ -149,6 +149,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BoardUI
   showThreats: 0
+  animationSpeed: 0.35
   boardTheme: {fileID: 11400000, guid: 8130ee9840d55024aa46b3095c388e30, type: 2}
   pieceTheme: {fileID: 11400000, guid: c181b8847cdf9414fbb385b03357bdec, type: 2}
 --- !u!4 &867872500
@@ -196,6 +197,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Core.GameManager
   boardUI: {fileID: 0}
+  startingPosition: rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
 --- !u!4 &1318194894
 Transform:
   m_ObjectHideFlags: 0

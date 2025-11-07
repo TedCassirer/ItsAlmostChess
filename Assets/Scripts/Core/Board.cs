@@ -213,5 +213,15 @@ namespace Core {
 
             throw new Exception("Couldn't find the target piece");
         }
+
+        public IEnumerable<(int, Coord)> GetPieceLocations() {
+            for (var file = 0; file < 8; file++) {
+                for (var rank = 0; rank < 8; rank++) {
+                    if (_squares[file, rank] != Piece.None) {
+                        yield return (_squares[file, rank], Coord.Create(file, rank));
+                    }
+                }
+            }
+        }
     }
 }

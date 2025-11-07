@@ -24,7 +24,7 @@ namespace Core {
             _whitePlayer = new Human(_board, boardUI, _moveGenerator);
             _whitePlayer.OnMoveChosen += OnMoveChosen;
 
-            _blackPlayer = new RandomAI(_moveGenerator);
+            _blackPlayer = new MinMax(_board);
             _blackPlayer.OnMoveChosen += OnMoveChosen;
         }
 
@@ -43,6 +43,7 @@ namespace Core {
             _board.LoadFENPosition(startingPosition);
             _moveGenerator.Refresh();
             boardUI.UpdatePieces(_board);
+            Start();
         }
 
         public void Update() {
