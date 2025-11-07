@@ -36,7 +36,7 @@ namespace Core {
         public bool CanCastleQueenSide =>
             IsWhitesTurn ? _currentState.WhiteCanCastleQueenside : _currentState.BlackCanCastleQueenside;
         
-        public void LoadFENPosition(string fen) {
+        public void LoadFenPosition(string fen) { // renamed from LoadFENPosition per style
             var rank = 7;
             var file = 0;
             Array.Clear(_squares, 0, _squares.Length);
@@ -79,60 +79,29 @@ namespace Core {
         }
 
         public void CommitMove(Move move) {
+            // Prepare new state snapshot
             BoardState newState = _currentState;
-
-            _squares[move.To.File, move.To.Rank] = _squares[move.From.File, move.From.Rank];
-            _squares[move.From.File, move.From.Rank] = Piece.None;
-            if (move.PromotionPiece != Piece.None) {
-                // Handle promotion
-                _squares[move.To.File, move.To.Rank] = move.PromotionPiece;
-            }
-
-            if (move.IsEnPassant) {
-                var capturedPawnSquare = move.EnPassantCapturedPawnSquare.Value;
-                _squares[capturedPawnSquare.File, capturedPawnSquare.Rank] = Piece.None;
-            }
-            if (move.IsCastling) {
-                Coord rookFrom, rookTo;
-                if (move.To.File == 6) {
-                    // Kingside
-                    rookFrom = Coord.Create(7, move.From.Rank);
-                    rookTo = Coord.Create(5, move.From.Rank);
-                }
-                else {
-                    // Queenside
-                    rookFrom = Coord.Create(0, move.From.Rank);
-                    rookTo = Coord.Create(3, move.From.Rank);
-                }
-
-                _squares[rookTo.File, rookTo.Rank] = _squares[rookFrom.File, rookFrom.Rank];
-                _squares[rookFrom.File, rookFrom.Rank] = Piece.None;
-                if (IsWhitesTurn) {
-                    newState.WhiteCanCastleKingside = false;
-                    newState.WhiteCanCastleQueenside = false;
-                }
-                else {
-                    newState.BlackCanCastleKingside = false;
-                    newState.BlackCanCastleQueenside = false;
-                }
-            }
-            
-
-            bool disableWhiteKingside = move.From.Equals(Coord.Create(4, 0)) || move.From.Equals(Coord.Create(7, 0)) || move.To.Equals(Coord.Create(7, 0));
-            bool disableWhiteQueenside = move.From.Equals(Coord.Create(4, 0)) || move.From.Equals(Coord.Create(0, 0)) || move.To.Equals(Coord.Create(0, 0));
-            bool disableBlackKingside = move.From.Equals(Coord.Create(4, 7)) || move.From.Equals(Coord.Create(7, 7)) || move.To.Equals(Coord.Create(7, 7));
-            bool disableBlackQueenside = move.From.Equals(Coord.Create(4, 7)) || move.From.Equals(Coord.Create(0, 7)) || move.To.Equals(Coord.Create(0, 7));
-
-
-            newState.WhiteCanCastleKingside &= !disableWhiteKingside;
-            newState.WhiteCanCastleQueenside &= !disableWhiteQueenside;
-            newState.BlackCanCastleKingside &= !disableBlackKingside;
-            newState.BlackCanCastleQueenside &= !disableBlackQueenside;
-
             newState.LastMove = move;
+            // Move piece (basic piece relocation first)
+            int movingPiece = _squares[move.From.File, move.From.Rank];
+            SetPiece(move.From, Piece.None);
+            SetPiece(move.To, movingPiece);
+
+            // Promotion
+            if (move.PromotionPiece != Piece.None) ApplyPromotion(move);
+            // Special moves
+            if (move.IsEnPassant && move.EnPassantCapturedPawnSquare.HasValue) ApplyEnPassantCapture(move);
+            if (move.IsCastling) ApplyCastlingRookMove(move, ref newState);
+
+            // Update castling rights after any king/rook movement or capture on rook square
+            UpdateCastlingRights(move, ref newState);
+
+            // Advance turn + clocks
             newState.IsWhitesTurn = !IsWhitesTurn;
             newState.MoveNumber += IsWhitesTurn ? 0 : 1;
-            newState.HalfmoveClock++;
+            newState.HalfmoveClock++; // (Could be refined: reset on pawn move or capture)
+
+            // Push previous state and publish new
             _history.Push(_currentState);
             _currentState = newState;
         }
@@ -222,6 +191,60 @@ namespace Core {
                     }
                 }
             }
+        }
+
+        private void SetPiece(Coord sq, int piece) {
+            _squares[sq.File, sq.Rank] = piece;
+        }
+
+        private void ApplyPromotion(Move move) {
+            SetPiece(move.To, move.PromotionPiece);
+        }
+
+        private void ApplyEnPassantCapture(Move move) {
+            if (!move.EnPassantCapturedPawnSquare.HasValue) return;
+            var capturedPawnSquare = move.EnPassantCapturedPawnSquare.Value;
+            SetPiece(capturedPawnSquare, Piece.None);
+        }
+
+        private void ApplyCastlingRookMove(Move move, ref BoardState newState) {
+            Coord rookFrom;
+            Coord rookTo;
+            bool kingside = move.To.File == 6; // destination file 6 => O-O
+            if (kingside) {
+                rookFrom = Coord.Create(7, move.From.Rank);
+                rookTo = Coord.Create(5, move.From.Rank);
+            } else {
+                rookFrom = Coord.Create(0, move.From.Rank);
+                rookTo = Coord.Create(3, move.From.Rank);
+            }
+            SetPiece(rookTo, _squares[rookFrom.File, rookFrom.Rank]);
+            SetPiece(rookFrom, Piece.None);
+            if (_currentState.IsWhitesTurn) {
+                newState.WhiteCanCastleKingside = false;
+                newState.WhiteCanCastleQueenside = false;
+            } else {
+                newState.BlackCanCastleKingside = false;
+                newState.BlackCanCastleQueenside = false;
+            }
+        }
+
+        private void UpdateCastlingRights(Move move, ref BoardState newState) {
+            // If king or rook moved or rook was captured on its initial square, revoke corresponding right.
+            bool MovedFrom(Coord c) => move.From.Equals(c);
+            bool MovedTo(Coord c) => move.To.Equals(c);
+
+            // White rook squares: a1 (0,0), h1 (7,0); king square e1 (4,0)
+            bool disableWhiteKingside = MovedFrom(Coord.Create(4,0)) || MovedFrom(Coord.Create(7,0)) || MovedTo(Coord.Create(7,0));
+            bool disableWhiteQueenside = MovedFrom(Coord.Create(4,0)) || MovedFrom(Coord.Create(0,0)) || MovedTo(Coord.Create(0,0));
+            // Black rook squares: a8 (0,7), h8 (7,7); king square e8 (4,7)
+            bool disableBlackKingside = MovedFrom(Coord.Create(4,7)) || MovedFrom(Coord.Create(7,7)) || MovedTo(Coord.Create(7,7));
+            bool disableBlackQueenside = MovedFrom(Coord.Create(4,7)) || MovedFrom(Coord.Create(0,7)) || MovedTo(Coord.Create(0,7));
+
+            newState.WhiteCanCastleKingside &= !disableWhiteKingside;
+            newState.WhiteCanCastleQueenside &= !disableWhiteQueenside;
+            newState.BlackCanCastleKingside &= !disableBlackKingside;
+            newState.BlackCanCastleQueenside &= !disableBlackQueenside;
         }
     }
 }

@@ -27,7 +27,7 @@ namespace Core {
             _moveGenerator = new MoveGenerator(_board);
             boardUI = FindFirstObjectByType<BoardUI>();
             boardUI.CreateBoardUI();
-            _board.LoadFENPosition(startingPosition);
+            _board.LoadFenPosition(startingPosition);
             boardUI.UpdatePieces(_board);
             _moveGenerator.Refresh();
 
@@ -61,7 +61,7 @@ namespace Core {
         [ContextMenu("Reset Game")]
         public void ResetGame() {
             Debug.Log("Resetting game...");
-            _board.LoadFENPosition(startingPosition);
+            _board.LoadFenPosition(startingPosition);
             _moveGenerator.Refresh();
             boardUI.UpdatePieces(_board);
             OnEnable();

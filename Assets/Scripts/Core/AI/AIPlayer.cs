@@ -7,7 +7,7 @@ namespace Core.AI {
         private IMoveProvider _moveProvider;
 
         protected override void OnInitialized() {
-            _moveProvider = new RandomAI(Board);
+            _moveProvider = new MiniMaxV2(Board);
         }
 
         protected override void OnTurnStarted() {

@@ -1,11 +1,6 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using JetBrains.Annotations;
-using Unity.VisualScripting;
 using Utils;
 
 namespace Core {
@@ -58,6 +53,7 @@ namespace Core {
         private static readonly Direction[] Cardinals = {
             new(1, 0), new(-1, 0), new(0, 1), new(0, -1)
         };
+        private static readonly Direction[] QueenDirections = Cardinals.Concat(Diagonals).ToArray();
 
         public MoveGenerator(Board board) {
             _board = board;
@@ -87,31 +83,28 @@ namespace Core {
             var piece = _board.GetPiece(square);
             if (piece == Piece.None || _board.IsWhitesTurn ^ Piece.IsColor(piece, Piece.White)) return new List<Move>();
 
-            IEnumerable<Coord> targetSquares;
+            int type = Piece.Type(piece);
+            IEnumerable<Coord> candidateTargets;
             if (InDoubleCheck) {
-                // Double check, we must move the king.
-                targetSquares = Piece.Type(piece) == Piece.King ? GenerateKingMoves(square) : new List<Coord>();
-            }
-            else {
-                // Only keep moves that stops check
-                targetSquares = Piece.Type(piece) switch {
-                    Piece.Pawn => GeneratePawnAttacks(square)
-                        .Concat(GeneratePawnMoves(square)),
+                candidateTargets = type == Piece.King ? GenerateKingMoves(square) : Enumerable.Empty<Coord>();
+            } else {
+                candidateTargets = type switch {
+                    Piece.Pawn => GeneratePawnAttacks(square).Concat(GeneratePawnMoves(square)),
                     Piece.Knight => GenerateKnightMoves(square),
-                    Piece.Queen => GenerateQueenMoves(square),
-                    Piece.Rook => GenerateRookMoves(square),
-                    Piece.Bishop => GenerateBishopMoves(square),
+                    Piece.Bishop => GenerateSlidingMoves(square, Diagonals),
+                    Piece.Rook => GenerateSlidingMoves(square, Cardinals),
+                    Piece.Queen => GenerateSlidingMoves(square, QueenDirections),
                     Piece.King => GenerateKingMoves(square),
-                    _ => new List<Coord>()
+                    _ => Enumerable.Empty<Coord>()
                 };
                 if (InCheck && !square.Equals(_friendlyKing)) {
-                    targetSquares = targetSquares.Where(ts =>
+                    candidateTargets = candidateTargets.Where(ts =>
                         _squaresBlockingCheck.Contains(ts) ||
-                        (ts.Equals(_board.EnPassantTarget) && Piece.Type(piece) == Piece.Pawn));
+                        (ts.Equals(_board.EnPassantTarget) && type == Piece.Pawn));
                 }
             }
 
-            return targetSquares
+            return candidateTargets
                 .Where(PinnedRestriction(square).Invoke)
                 .Select(ts => CreateMove(square, ts))
                 .SelectMany(GeneratePromotionMoves)
@@ -232,48 +225,12 @@ namespace Core {
             return targetSquares.Where(sq => sq.InBounds).ToList();
         }
 
-        private IEnumerable<Coord> GenerateBishopMoves(Coord square) {
-            return Diagonals.SelectMany(d => MovesIncludingCapturesInDirection(square, d))
-                .Where(sq => !InCheck || _squaresBlockingCheck.Contains(sq));
-        }
-
-        private IEnumerable<Coord> GetBishopThreats(Coord square) {
-            return Diagonals.SelectMany(d => MovesIncludingCapturesInDirection(square, d, bothColors: true));
-        }
-
-        private IEnumerable<Coord> GenerateRookMoves(Coord square) {
-            return Cardinals.SelectMany(d => MovesIncludingCapturesInDirection(square, d))
-                .Where(sq => !InCheck || _squaresBlockingCheck.Contains(sq));
-        }
-
-        private IEnumerable<Coord> GetRookThreats(Coord square) {
-            return Cardinals.SelectMany(d => MovesIncludingCapturesInDirection(square, d, bothColors: true));
-        }
-
-        private IEnumerable<Coord> GenerateQueenMoves(Coord square) {
-            return Cardinals.Concat(Diagonals)
-                .SelectMany(d => MovesIncludingCapturesInDirection(square, d))
-                .Where(sq => !InCheck || _squaresBlockingCheck.Contains(sq));
-        }
-
-        private IEnumerable<Coord> GetQueenThreats(Coord square) {
-            return Cardinals.Concat(Diagonals)
-                .SelectMany(d => MovesIncludingCapturesInDirection(square, d, bothColors: true));
-        }
-
-        private IEnumerable<Coord> MovesIncludingCapturesInDirection(Coord square, Direction direction,
-            bool bothColors = false) {
-            foreach (Coord coord in direction.MoveToEnd(square)) {
-                var targetPiece = _board.GetPiece(coord);
-                if (targetPiece == Piece.None) {
-                    yield return coord;
-                }
-                else {
-                    if (bothColors || Piece.IsColor(targetPiece, _board.OpponentColor)) {
+        private IEnumerable<Coord> GenerateSlidingMoves(Coord from, IEnumerable<Direction> dirs) {
+            foreach (var dir in dirs) {
+                foreach (var coord in MovesIncludingCapturesInDirection(from, dir)) {
+                    if (!InCheck || _squaresBlockingCheck.Contains(coord)) {
                         yield return coord;
                     }
-
-                    yield break;
                 }
             }
         }
@@ -428,8 +385,6 @@ namespace Core {
                 }
             }
 
-            dir.MoveToEnd(square).TakeWhile(sq => _board.IsEmpty(sq)).ToList();
-
             // Away from the king
             List<Coord> pathAwayFromKing = new List<Coord>();
             foreach (Coord sq in dir.Reverse().MoveToEnd(square)) {
@@ -463,79 +418,16 @@ namespace Core {
 
         public int CountMoves(int depth) {
             if (depth == 0) return 1;
-            var total = 0;
+            int total = 0;
             Refresh();
             foreach (var move in LegalMoves()) {
                 _board.CommitMove(move);
                 total += CountMoves(depth - 1);
                 _board.UndoMove();
             }
-
             return total;
         }
-
-        public int CountMovesParallel(int depth) {
-            if (depth == 0) return 1;
-            return LegalMoves().AsParallel().WithDegreeOfParallelism(Environment.ProcessorCount)
-                .Select(move => {
-                    var copy = _board.Clone();
-                    copy.CommitMove(move);
-                    return new MoveGenerator(copy).CountMoves(depth - 1);
-                }).Sum();
-        }
-
-        public int CountMovesWithConcurrentQueue(int depth) {
-            if (depth == 0) return 1;
-            var queue = new ConcurrentQueue<(Board board, int d)>();
-            foreach (var move in LegalMoves()) {
-                var copy = _board.Clone();
-                copy.CommitMove(move);
-                queue.Enqueue((copy, depth - 1));
-            }
-
-            int total = 0;
-            int workers = Environment.ProcessorCount;
-
-            Parallel.For(0, workers, new ParallelOptions(), _ => {
-                var stack = new Stack<(Board board, int d)>();
-                while (!queue.IsEmpty || stack.Count > 0) {
-                    if (stack.Count == 0 && queue.TryDequeue(out var rootItem)) {
-                        stack.Push(rootItem);
-                    }
-
-                    if (stack.Count == 0) continue;
-
-                    var (b, d) = stack.Pop();
-                    if (d == 0) {
-                        Interlocked.Increment(ref total);
-                        continue;
-                    }
-
-                    var gen = new MoveGenerator(b);
-                    foreach (var mv in gen.LegalMoves()) {
-                        var child = b.Clone();
-                        child.CommitMove(mv);
-
-                        int nd = d - 1;
-                        if (nd == 0) {
-                            Interlocked.Increment(ref total);
-                        }
-                        else {
-                            // Occasionally re-enqueue to help other threads if local stack is large
-                            if (stack.Count > 64) {
-                                queue.Enqueue((child, nd));
-                            }
-                            else {
-                                stack.Push((child, nd));
-                            }
-                        }
-                    }
-                }
-            });
-
-            return total;
-        }
-
+        
         public bool ValidateMove(Coord from, Coord to, out Move validMove) {
             validMove = ValidMovesForSquare(from)
                 .FirstOrDefault(m => m.To.Equals(to));
@@ -546,6 +438,32 @@ namespace Core {
             }
 
             return false;
+        }
+
+        private IEnumerable<Coord> MovesIncludingCapturesInDirection(Coord square, Direction direction,
+            bool bothColors = false) {
+            foreach (Coord coord in direction.MoveToEnd(square)) {
+                var targetPiece = _board.GetPiece(coord);
+                if (targetPiece == Piece.None) {
+                    yield return coord;
+                }
+                else {
+                    if (bothColors || Piece.IsColor(targetPiece, _board.OpponentColor)) {
+                        yield return coord;
+                    }
+                    yield break;
+                }
+            }
+        }
+
+        private IEnumerable<Coord> GetBishopThreats(Coord square) {
+            return Diagonals.SelectMany(d => MovesIncludingCapturesInDirection(square, d, bothColors: true));
+        }
+        private IEnumerable<Coord> GetRookThreats(Coord square) {
+            return Cardinals.SelectMany(d => MovesIncludingCapturesInDirection(square, d, bothColors: true));
+        }
+        private IEnumerable<Coord> GetQueenThreats(Coord square) {
+            return QueenDirections.SelectMany(d => MovesIncludingCapturesInDirection(square, d, bothColors: true));
         }
     }
 }

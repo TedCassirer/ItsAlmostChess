@@ -9,7 +9,7 @@ namespace Tests {
         [Test]
         public void LoadFEN_StartingPosition_SetsPiecesAndCastlingRights() {
             var board = new Board();
-            board.LoadFENPosition(StartingPosition);
+            board.LoadFenPosition(StartingPosition);
             // e1 white king: file 4 rank 0
             Assert.That(board.GetPiece(Coord.Create(4, 0)), Is.EqualTo(Piece.King | Piece.White));
             // e8 black king: file 4 rank 7
@@ -21,7 +21,7 @@ namespace Tests {
         [Test]
         public void CommitMove_PawnAdvance_UpdatesBoardAndTurnAndLastMove() {
             var board = new Board();
-            board.LoadFENPosition(StartingPosition);
+            board.LoadFenPosition(StartingPosition);
             var from = Coord.Create(4, 1); // e2
             var to = Coord.Create(4, 3);   // e4
             var move = new Move(from, to);
@@ -34,7 +34,7 @@ namespace Tests {
         [Test]
         public void UndoMove_PawnAdvance_RestoresBoardAndTurn() {
             var board = new Board();
-            board.LoadFENPosition(StartingPosition);
+            board.LoadFenPosition(StartingPosition);
             var move = new Move(Coord.Create(4, 1), Coord.Create(4, 3)); // e2 -> e4
             board.CommitMove(move);
             board.UndoMove();
@@ -46,9 +46,9 @@ namespace Tests {
         [Test]
         public void CommitMove_CastleKingside_MovesRookAndClearsRights() {
             var board = new Board();
-            board.LoadFENPosition(StartingPosition);
+            board.LoadFenPosition(StartingPosition);
             // Manually clear squares between king and rook to allow castle (f1,g1)
-            board.LoadFENPosition("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQK2R w KQkq - 0 1");
+            board.LoadFenPosition("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQK2R w KQkq - 0 1");
             var move = Move.Castle(Coord.Create(4, 0), Coord.Create(6, 0)); // e1 -> g1
             board.CommitMove(move);
             Assert.That(board.GetPiece(Coord.Create(6, 0)), Is.EqualTo(Piece.King | Piece.White));
@@ -61,7 +61,7 @@ namespace Tests {
         [Test]
         public void UndoMove_CastleKingside_RestoresKingRookAndRights() {
             var board = new Board();
-            board.LoadFENPosition("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQK2R w KQkq - 0 1");
+            board.LoadFenPosition("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQK2R w KQkq - 0 1");
             var move = Move.Castle(Coord.Create(4, 0), Coord.Create(6, 0));
             board.CommitMove(move);
             board.UndoMove();
@@ -75,7 +75,7 @@ namespace Tests {
         public void CantCastleThroughCheck() {
             var board = new Board();
             // Position where white cannot castle kingside because f1 is under attack
-            board.LoadFENPosition("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQ1RK1 w Qkq - 0 1");
+            board.LoadFenPosition("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQ1RK1 w Qkq - 0 1");
             var moveGenerator = new MoveGenerator(board);
             var legalMoves = moveGenerator.LegalMoves();
             Assert.That(legalMoves.All(m => !m.IsCastling), Is.True);

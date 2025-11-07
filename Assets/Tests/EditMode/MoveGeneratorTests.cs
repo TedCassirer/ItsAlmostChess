@@ -20,7 +20,7 @@ namespace Tests {
 
         private MoveGenerator Load(string fen) {
             board = new Board();
-            board.LoadFENPosition(fen);
+            board.LoadFenPosition(fen);
             generator = new MoveGenerator(board);
             return generator;
         }
@@ -117,7 +117,7 @@ namespace Tests {
              * Got 4865351 after fixing a bug for checking if a piece is pinned.
              */
             Load(StartingPosition);
-            var moveCount = generator.CountMovesParallel(depth);
+            var moveCount = generator.CountMoves(depth);
             Assert.That(moveCount, Is.EqualTo(expectedMoves));
         }
         
@@ -130,7 +130,7 @@ namespace Tests {
             // https://www.chessprogramming.org/Perft_Results#Position_5
             const string position5Perft = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
             Load(position5Perft);
-            var moveCount = generator.CountMovesParallel(depth);
+            var moveCount = generator.CountMoves(depth);
             Assert.That(moveCount, Is.EqualTo(expectedMoves));
         }
     }
