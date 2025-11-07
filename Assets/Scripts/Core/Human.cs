@@ -1,5 +1,4 @@
-﻿using UnityEngine;
-using UnityEngine.InputSystem;
+﻿using UnityEngine.InputSystem;
 
 namespace Core {
     public class Human : Player {
@@ -25,7 +24,7 @@ namespace Core {
         private void HandleInput() {
             if (Mouse.current.leftButton.wasReleasedThisFrame) HandleMouseUp();
 
-            if (_boardUI.TryGetSquareUnderMouse(out var targetSquare)) {
+            if (_boardUI.TryGetSquareUnderMouse(out Coord targetSquare)) {
                 if (Mouse.current.leftButton.wasPressedThisFrame)
                     HandleSelectSquare(targetSquare);
                 if (Mouse.current.rightButton.wasPressedThisFrame)

@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using Core;
 using NUnit.Framework;
 
@@ -10,7 +9,6 @@ namespace Tests {
         private const string KingInCheckPosition = "3Rr/3B/2N/8/2n/8/r1Q1K/8 w - - 0 1";
         private const string DoubleCheck = "3Rr/8/8/8/8/8/r3K/8 w - - 0 1";
         private const string PawnPromotionPosition = "8/4P3/8/8/8/8/8/K7 w - - 0 1";
-        private const string EnPassantPosition = "8/8/8/3pP3/8/8/8/K7 w - d6 0 1";
         private const string EnPassantCheckThreatPosition = "8/8/8/3pP3/2K/8/4r3/7 w - d6 0 1";
         private const string CastlingPosition = "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1";
 
@@ -78,12 +76,12 @@ namespace Tests {
                 Piece.Type(m.PromotionPiece) is Piece.Queen or Piece.Rook or Piece.Bishop or Piece.Knight));
         }
 
-        [Test]
-        public void EnPassantMove() {
-            List<Move> moves = MovesFor(EnPassantPosition, Piece.Pawn | Piece.White);
+        [TestCase("8/8/8/3pP3/8/8/8/K7 w - d6 0 1", Piece.White)]
+        [TestCase("8/8/8/8/3pP3/8/8/K7 b - e3 0 1", Piece.Black)]
+        public void EnPassantMove(string position, int color) {
+            List<Move> moves = MovesFor(position, Piece.Pawn | color);
             Assert.That(moves.Count, Is.EqualTo(2));
             Move epMove = moves.First(m => m.IsEnPassant);
-            Assert.That(epMove.EnPassantCapturedPawnSquare, Is.EqualTo(Coord.Create(3, 4)));
             board.CommitMove(epMove);
             Assert.That(board.GetPiece(epMove.EnPassantCapturedPawnSquare.Value), Is.EqualTo(Piece.None));
         }
@@ -102,13 +100,35 @@ namespace Tests {
 
             Assert.That(moves.Count(m => m.IsCastling), Is.EqualTo(2));
         }
+
+        [TestCase("8/8/8/2KpP1r1/8/8/8/8 w - d6 0 1")]
+        [TestCase("8/8/8/2KpPr2/8/8/8/8 w - d6 0 1")]
+        [TestCase("8/8/8/2KPpr2/8/8/8/8 w - e6 0 1")]
+        [TestCase("8/8/8/2rpP1K1/8/8/8/8 w - d6 0 1")]
+        [TestCase("8/8/8/2rPpK2/8/8/8/8 w - e6 0 1")]
+        public void EnPassantPinnedTest(string pos) {
+            List<Move> moves = MovesFor(pos, Piece.Pawn | Piece.White);
+            
+            Assert.That(moves.Count(m => m.IsEnPassant), Is.EqualTo(0));
+        }
+        
+        [TestCase("8/8/8/KN1pP1r1/8/8/8/8 w - d6 0 1")]
+        [TestCase("8/8/8/K1NpPr2/8/8/8/8 w - d6 0 1")]
+        [TestCase("8/8/8/K1NPpr2/8/8/8/8 w - e6 0 1")]
+        [TestCase("8/8/8/2rpPNK/8/8/8/8 w - d6 0 1")]
+        [TestCase("8/8/8/2rPpN1K/8/8/8/8 w - e6 0 1")]
+        public void EnPassantNotPinnedTest(string pos) {
+            List<Move> moves = MovesFor(pos, Piece.Pawn | Piece.White);
+            
+            Assert.That(moves.Count(m => m.IsEnPassant), Is.EqualTo(1));
+        }
         
         [TestCase(1, 20)]
         [TestCase(2, 400)]
         [TestCase(3, 8_902)]
         [TestCase(4, 197_281)]
         [TestCase(5, 4_865_609)]
-        // [TestCase(6, 119_060_324, 300_000_000)]
+        // [TestCase(6, 119_060_324)]
         public void ShannonNumberCalculation(int depth, int expectedMoves) {
             /***
              * For 5, got 4_865_167, 1 min 27 seconds with root split parallel, 54s with ConcurrentQueue.

@@ -18,11 +18,16 @@ namespace UI {
             public Color moveIndicator;
         }
 
-        public Color Normal(Coord c) => c.IsLightSquare() ? lightSquares.normal : darkSquares.normal;
-        public Color Highlighted(Coord c) => c.IsLightSquare() ? lightSquares.highlighted : darkSquares.highlighted;
+        public Color Normal(Coord c) {
+            return c.IsLightSquare() ? lightSquares.normal : darkSquares.normal;
+        }
+
+        public Color Highlighted(Coord c) {
+            return c.IsLightSquare() ? lightSquares.highlighted : darkSquares.highlighted;
+        }
 
 #if UNITY_EDITOR
-        void OnValidate() {
+        private void OnValidate() {
             // fires when values change in inspector
             Changed?.Invoke();
         }

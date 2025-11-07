@@ -29,19 +29,19 @@ namespace Core {
 
         public static Move EnPassantMove(Coord from, Coord to) {
             var cappedColor = from.Rank < to.Rank ? Piece.Black : Piece.White;
-            return new Move(from, to, capturedPiece: Piece.Pawn | cappedColor, isEnPassant: true);
+            return new Move(from, to, Piece.Pawn | cappedColor, isEnPassant: true);
         }
-        
+
         public static Move Castle(Coord from, Coord to) {
             return new Move(from, to, isCastling: true);
         }
 
         public static List<Move> CreatePromotionMove(Move baseMove, int color) {
             return new List<Move> {
-                new(baseMove.From, baseMove.To, baseMove.CapturedPiece, promotionPiece: Piece.Queen | color),
-                new(baseMove.From, baseMove.To, baseMove.CapturedPiece, promotionPiece: Piece.Rook | color),
-                new(baseMove.From, baseMove.To, baseMove.CapturedPiece, promotionPiece: Piece.Bishop | color),
-                new(baseMove.From, baseMove.To, baseMove.CapturedPiece, promotionPiece: Piece.Knight | color)
+                new(baseMove.From, baseMove.To, baseMove.CapturedPiece, Piece.Queen | color),
+                new(baseMove.From, baseMove.To, baseMove.CapturedPiece, Piece.Rook | color),
+                new(baseMove.From, baseMove.To, baseMove.CapturedPiece, Piece.Bishop | color),
+                new(baseMove.From, baseMove.To, baseMove.CapturedPiece, Piece.Knight | color)
             };
         }
 

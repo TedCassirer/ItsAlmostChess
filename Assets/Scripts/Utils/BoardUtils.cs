@@ -1,6 +1,4 @@
-﻿using System;
-using Core;
-using UnityEngine;
+﻿using Core;
 
 namespace Utils {
     public static class BoardUtils {
