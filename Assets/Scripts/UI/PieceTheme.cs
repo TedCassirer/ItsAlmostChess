@@ -8,7 +8,7 @@ namespace UI {
         public PieceSprites blackPieces;
 
         public Sprite GetPieceSprite(int piece) {
-            var pieceSprites = Piece.IsColor(piece, Piece.White) ? whitePieces : blackPieces;
+            PieceSprites pieceSprites = Piece.IsColor(piece, Piece.White) ? whitePieces : blackPieces;
             return pieceSprites[Piece.Type(piece)];
         }
 

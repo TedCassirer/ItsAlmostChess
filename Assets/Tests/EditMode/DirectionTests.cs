@@ -1,7 +1,5 @@
-using NUnit.Framework;
-using System.Collections.Generic;
 using Core;
-using Utils;
+using NUnit.Framework;
 
 namespace Tests {
     public class DirectionTests {
@@ -40,4 +38,3 @@ namespace Tests {
         }
     }
 }
-

@@ -197,10 +197,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Core.GameManager
   boardUI: {fileID: 0}
-  blackIsAi: 1
-  whiteIsAi: 1
-  aiMoveDelay: 0
-  startingPosition: rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+  blackIsAi: 0
+  whiteIsAi: 0
+  aiMoveDelay: 1
+  startingPosition: rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8
 --- !u!4 &1318194894
 Transform:
   m_ObjectHideFlags: 0

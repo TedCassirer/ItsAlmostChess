@@ -11,7 +11,7 @@ namespace Core {
         private Player _whitePlayer;
         [SerializeField] private bool blackIsAi;
         [SerializeField] private bool whiteIsAi;
-        [SerializeField] private float aiMoveDelay = 1f;
+        [SerializeField] private float aiMoveDelay = 0.2f;
         private Player _blackPlayer;
         private Player PlayerToMove => _board.IsWhitesTurn ? _whitePlayer : _blackPlayer;
 
@@ -30,18 +30,14 @@ namespace Core {
             _board.LoadFenPosition(startingPosition);
             boardUI.UpdatePieces(_board);
             _moveGenerator.Refresh();
-
-
         }
 
         private Player GetPlayer(bool isAi) {
             Player player;
-            if (isAi) {
+            if (isAi)
                 player = transform.AddComponent<AIPlayer>();
-            }
-            else {
+            else
                 player = transform.AddComponent<Human>();
-            }
             player.Init(_board);
             player.OnMoveChosen += OnMoveChosen;
             return player;
@@ -53,13 +49,14 @@ namespace Core {
             Debug.Log("Game started. White to move.");
             if (_board.IsWhitesTurn)
                 _whitePlayer.NotifyTurnToPlay();
-            else {
+            else
                 _blackPlayer.NotifyTurnToPlay();
-            }
         }
 
         [ContextMenu("Reset Game")]
         public void ResetGame() {
+            Destroy(_blackPlayer);
+            Destroy(_whitePlayer);
             Debug.Log("Resetting game...");
             _board.LoadFenPosition(startingPosition);
             _moveGenerator.Refresh();
@@ -75,23 +72,21 @@ namespace Core {
 
         private void OnMoveChosen(Move? move) {
             if (move == null) return;
-            bool wasAi = PlayerToMove.IsAI;
+            var wasAi = PlayerToMove.IsAI;
             _board.CommitMove(move.Value);
             _moveGenerator.Refresh();
             boardUI.OnMoveChosen(move.Value, wasAi);
 
-            if (WhiteIsAI && BlackIsAI) {
+            if (WhiteIsAI && BlackIsAI)
                 // Sleep for a short duration to allow UI to update
                 StartCoroutine(DelayedNextTurn(AIMoveDelay));
-            }
-            else {
+            else
                 PlayerToMove.NotifyTurnToPlay();
-            }
         }
 
         private IEnumerator DelayedNextTurn(float delay) {
             yield return new WaitForSeconds(delay);
-            
+
             PlayerToMove.NotifyTurnToPlay();
         }
     }

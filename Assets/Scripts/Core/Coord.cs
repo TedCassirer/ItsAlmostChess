@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Linq;
-using Unity.VisualScripting;
 using Utils;
 
 namespace Core {
@@ -27,8 +26,8 @@ namespace Core {
         public static Coord Parse(string squareName) {
             if (squareName.Length != 2)
                 throw new ArgumentException("Invalid square name");
-            int file = squareName[0] - 'a';
-            int rank = squareName[1] - '1';
+            var file = squareName[0] - 'a';
+            var rank = squareName[1] - '1';
             return Create(file, rank);
         }
 
@@ -40,7 +39,7 @@ namespace Core {
             return File == other.File && Rank == other.Rank ? 0 : 1;
         }
 
-        public bool InBounds => (File is >= 0 and < 8) && (Rank is >= 0 and < 8);
+        public bool InBounds => File is >= 0 and < 8 && Rank is >= 0 and < 8;
 
         public override string ToString() {
             return BoardUtils.SquareName(File, Rank);

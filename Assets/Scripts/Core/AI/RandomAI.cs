@@ -13,9 +13,7 @@ namespace Core.AI {
         public Move? GetNextMove() {
             _moveGenerator.Refresh();
             List<Move> legalMoves = _moveGenerator.LegalMoves();
-            if (legalMoves.Count == 0) {
-                throw new System.InvalidOperationException("No legal moves available.");
-            }
+            if (legalMoves.Count == 0) throw new InvalidOperationException("No legal moves available.");
 
             var randomIndex = _random.Next(0, legalMoves.Count);
             if (legalMoves.Count == 0) return null;

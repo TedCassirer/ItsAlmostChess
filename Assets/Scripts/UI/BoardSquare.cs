@@ -17,7 +17,7 @@ namespace UI {
         private void Init(Coord coord, BoardTheme theme) {
             _coord = coord;
 
-            var shader = Shader.Find("Unlit/Color");
+            Shader shader = Shader.Find("Unlit/Color");
             // base square
             var square = GameObject.CreatePrimitive(PrimitiveType.Quad);
             square.name = "Square";
@@ -62,7 +62,12 @@ namespace UI {
             };
         }
 
-        public void SetHighlighted(bool on) => _highlight.enabled = on;
-        public void ShowMoveMarker(bool on) => _moveMarker.enabled = on;
+        public void SetHighlighted(bool on) {
+            _highlight.enabled = on;
+        }
+
+        public void ShowMoveMarker(bool on) {
+            _moveMarker.enabled = on;
+        }
     }
 }

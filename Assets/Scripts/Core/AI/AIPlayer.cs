@@ -15,7 +15,7 @@ namespace Core.AI {
         }
 
         private IEnumerator ChooseNextMoveCoroutine() {
-            var task = Task.Run(GetNextMove); // heavy work off-thread
+            Task<Move?> task = Task.Run(GetNextMove); // heavy work off-thread
 
             while (!task.IsCompleted)
                 yield return null; // keep UI responsive
@@ -25,7 +25,7 @@ namespace Core.AI {
                 yield break;
             }
 
-            var move = task.Result; // back on main thread here
+            Move? move = task.Result; // back on main thread here
             if (move.HasValue) ChooseMove(move.Value); // safe to touch Unity API
         }
 

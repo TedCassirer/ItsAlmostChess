@@ -54,21 +54,19 @@ public class BoardUI : MonoBehaviour {
         }
     }
 
-    void DeleteBoardUI() {
-        foreach (Transform child in transform) {
-            DestroyImmediate(child.gameObject);
-        }
+    private void DeleteBoardUI() {
+        foreach (Transform child in transform) DestroyImmediate(child.gameObject);
     }
 
 
-    void OnEnable() {
+    private void OnEnable() {
         // Subscribe to theme change
         CreateBoardUI();
         if (boardTheme != null)
             boardTheme.Changed += OnThemeChanged;
     }
 
-    void OnDisable() {
+    private void OnDisable() {
         // Always unsubscribe to avoid leaks
         if (boardTheme != null)
             boardTheme.Changed -= OnThemeChanged;
@@ -84,7 +82,7 @@ public class BoardUI : MonoBehaviour {
 
     private void OnThemeChanged() {
         Debug.Log("Theme changed!");
-        foreach (var square in GetComponentsInChildren<BoardSquare>(true))
+        foreach (BoardSquare square in GetComponentsInChildren<BoardSquare>(true))
             square.ApplyTheme(boardTheme);
     }
 
@@ -115,7 +113,7 @@ public class BoardUI : MonoBehaviour {
     private IEnumerator AnimateMove(SpriteRenderer pieceRenderer, BoardSquare targetSquare) {
         Vector3 startPos = pieceRenderer.transform.position;
         Vector3 endPos = targetSquare.transform.position + new Vector3(0f, 0f, PieceDepth);
-        float elapsed = 0f;
+        var elapsed = 0f;
 
         while (elapsed < animationSpeed) {
             pieceRenderer.transform.position = Vector3.Lerp(startPos, endPos, elapsed / animationSpeed);
@@ -162,12 +160,12 @@ public class BoardUI : MonoBehaviour {
 
     public void HighlightValidMoves(Coord square) {
         var generator = new MoveGenerator(_board);
-        foreach (var move in generator.ValidMovesForSquare(square)) GetSquare(move.To).ShowMoveMarker(true);
+        foreach (Move move in generator.ValidMovesForSquare(square)) GetSquare(move.To).ShowMoveMarker(true);
     }
 
     public void HighlightThreats(Coord square) {
         var generator = new MoveGenerator(_board);
-        foreach (var attackedSquare in generator.GetThreats(square))
+        foreach (Coord attackedSquare in generator.GetThreats(square))
             GetSquare(attackedSquare).SetHighlighted(true);
     }
 
@@ -180,13 +178,13 @@ public class BoardUI : MonoBehaviour {
     }
 
     public void DragPiece(Coord square) {
-        var piece = _squarePieceRenderers[square.File, square.Rank];
+        SpriteRenderer piece = _squarePieceRenderers[square.File, square.Rank];
         Vector2 mousePos = _cam.ScreenToWorldPoint(Mouse.current.position.ReadValue());
         piece.transform.position = new Vector3(mousePos.x, mousePos.y, PieceDragDepth);
     }
 
     public void ReleasePiece(Coord square) {
-        var piece = _squarePieceRenderers[square.File, square.Rank].transform;
+        Transform piece = _squarePieceRenderers[square.File, square.Rank].transform;
         piece.localPosition = new Vector3(0, 0, PieceDepth);
     }
 }
