@@ -6,16 +6,11 @@ namespace Core.AI {
     public class AIPlayer : Player {
         private IMoveProvider _moveProvider;
 
-        public override void Update() {
-        }
-
-        public override void Init(Board board) {
-            Board = board;
+        protected override void OnInitialized() {
             _moveProvider = new RandomAI(Board);
         }
 
-
-        public override void NotifyTurnToPlay() {
+        protected override void OnTurnStarted() {
             StartCoroutine(ChooseNextMoveCoroutine());
         }
 
