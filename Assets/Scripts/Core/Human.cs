@@ -1,7 +1,7 @@
 ﻿using UnityEngine.InputSystem;
 
 namespace Core {
-    public class Human {
+    public class Human : Player {
         private readonly BoardUI _boardUI;
         private readonly Board _board;
         private Coord _selectedPieceSquare;
@@ -14,7 +14,7 @@ namespace Core {
             _moveGenerator = moveGenerator;
         }
 
-        public void Update() {
+        public override void Update() {
             HandleInput();
             if (_isDraggingPiece) _boardUI.DragPiece(_selectedPieceSquare);
         }
@@ -56,11 +56,8 @@ namespace Core {
 
                 if (_boardUI.TryGetSquareUnderMouse(out Coord targetSquare)) {
                     if (targetSquare.Equals(_selectedPieceSquare)) return;
-                    if (_moveGenerator.ValidateMove(_selectedPieceSquare, targetSquare, out Move? validMove)) {
-                        _board.CommitMove(validMove.Value);
-                        _moveGenerator.Refresh();
-                        _boardUI.ResetSquares();
-                        _boardUI.UpdatePosition(_board);
+                    if (_moveGenerator.ValidateMove(_selectedPieceSquare, targetSquare, out Move validMove)) {
+                        ChooseMove(validMove);
                     }
                 }
             }

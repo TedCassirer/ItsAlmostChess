@@ -94,6 +94,7 @@ public class BoardUI : MonoBehaviour {
             var piece = board.GetPiece(file, rank);
             _squarePieceRenderers[file, rank].sprite = pieceTheme.GetPieceSprite(piece);
         }
+        ResetSquares();
     }
 
     // Update is called once per frame

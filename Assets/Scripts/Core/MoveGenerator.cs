@@ -72,7 +72,7 @@ namespace Core {
             CalculateAttackedData();
         }
 
-        public List<Move> ValidMoves() {
+        public List<Move> LegalMoves() {
             var moves = new List<Move>();
             for (var file = 0; file < 8; file++)
             for (var rank = 0; rank < 8; rank++) {
@@ -460,12 +460,12 @@ namespace Core {
 
         public int CountMoves(int depth) {
             if (depth == 0) return 1;
-            Refresh();
             var total = 0;
-            foreach (var move in ValidMoves()) {
+            Refresh();
+            foreach (var move in LegalMoves()) {
                 _board.CommitMove(move);
                 total += CountMoves(depth - 1);
-                _board.UndoMove(move);
+                _board.UndoMove();
             }
 
             return total;
@@ -473,7 +473,7 @@ namespace Core {
 
         public int CountMovesParallel(int depth) {
             if (depth == 0) return 1;
-            return ValidMoves().AsParallel().WithDegreeOfParallelism(Environment.ProcessorCount)
+            return LegalMoves().AsParallel().WithDegreeOfParallelism(Environment.ProcessorCount)
                 .Select(move => {
                     var copy = _board.Clone();
                     copy.CommitMove(move);
@@ -484,7 +484,7 @@ namespace Core {
         public int CountMovesWithConcurrentQueue(int depth) {
             if (depth == 0) return 1;
             var queue = new ConcurrentQueue<(Board board, int d)>();
-            foreach (var move in ValidMoves()) {
+            foreach (var move in LegalMoves()) {
                 var copy = _board.Clone();
                 copy.CommitMove(move);
                 queue.Enqueue((copy, depth - 1));
@@ -509,7 +509,7 @@ namespace Core {
                     }
 
                     var gen = new MoveGenerator(b);
-                    foreach (var mv in gen.ValidMoves()) {
+                    foreach (var mv in gen.LegalMoves()) {
                         var child = b.Clone();
                         child.CommitMove(mv);
 
@@ -533,17 +533,15 @@ namespace Core {
             return total;
         }
 
-        public bool ValidateMove(Coord from, Coord to, out Move? validMove) {
-            var move = ValidMovesForSquare(from)
+        public bool ValidateMove(Coord from, Coord to, out Move validMove) {
+            validMove = ValidMovesForSquare(from)
                 .FirstOrDefault(m => m.To.Equals(to));
 
             // check whether a valid move was actually found
-            if (!move.Equals(default(Move))) {
-                validMove = move;
+            if (!validMove.Equals(default(Move))) {
                 return true;
             }
 
-            validMove = null;
             return false;
         }
     }

@@ -33,7 +33,7 @@ namespace Core {
         }
 
         public bool IsLightSquare() {
-            return (File + Rank) % 2 != 1;
+            return (File + Rank) % 2 != 0;
         }
 
         public int CompareTo(Coord other) {

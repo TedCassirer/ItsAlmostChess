@@ -15,6 +15,7 @@ namespace Core {
             boardUI.UpdatePosition(_board);
             _moveGenerator.Refresh();
             _human = new Human(_board, boardUI, _moveGenerator);
+            _human.OnMoveChosen += OnMoveChosen;
         }
 
         [ContextMenu("Reset Game")]
@@ -27,6 +28,12 @@ namespace Core {
 
         public void Update() {
             _human?.Update();
+        }
+
+        private void OnMoveChosen(Move move) {
+            _board.CommitMove(move);
+            boardUI.UpdatePosition(_board);
+            _moveGenerator.Refresh();
         }
     }
 }
