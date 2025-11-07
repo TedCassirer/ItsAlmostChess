@@ -7,6 +7,7 @@ namespace Core {
         private Coord _selectedPieceSquare;
         private bool _isDraggingPiece;
         private MoveGenerator _moveGenerator;
+        private bool _isTurnToPlay = false;
 
         public Human(Board board, BoardUI boardUI, MoveGenerator moveGenerator) {
             _board = board;
@@ -17,6 +18,10 @@ namespace Core {
         public override void Update() {
             HandleInput();
             if (_isDraggingPiece) _boardUI.DragPiece(_selectedPieceSquare);
+        }
+
+        public override void NotifyTurnToPlay() {
+            _isTurnToPlay = true;
         }
 
         private void HandleInput() {
@@ -54,7 +59,7 @@ namespace Core {
                 _boardUI.ReleasePiece(_selectedPieceSquare);
                 _isDraggingPiece = false;
 
-                if (_boardUI.TryGetSquareUnderMouse(out Coord targetSquare)) {
+                if (_isTurnToPlay && _boardUI.TryGetSquareUnderMouse(out Coord targetSquare)) {
                     if (targetSquare.Equals(_selectedPieceSquare)) return;
                     if (_moveGenerator.ValidateMove(_selectedPieceSquare, targetSquare, out Move validMove)) {
                         ChooseMove(validMove);
