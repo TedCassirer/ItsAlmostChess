@@ -9,5 +9,7 @@ namespace Core {
         }
 
         public abstract void NotifyTurnToPlay();
+
+        public bool IsHuman =>  this is Human;
     }
 }

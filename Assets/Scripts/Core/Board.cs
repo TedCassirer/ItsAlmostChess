@@ -30,18 +30,12 @@ namespace Core {
             get => _currentState.EnPassantTarget;
         }
 
-        private MoveGenerator _moveGenerator;
-
         public bool CanCastleKingSide =>
             IsWhitesTurn ? _currentState.WhiteCanCastleKingside : _currentState.BlackCanCastleKingside;
 
         public bool CanCastleQueenSide =>
             IsWhitesTurn ? _currentState.WhiteCanCastleQueenside : _currentState.BlackCanCastleQueenside;
-
-        public Board() {
-            _moveGenerator = new MoveGenerator(this);
-        }
-
+        
         public void LoadFENPosition(string fen) {
             var rank = 7;
             var file = 0;
@@ -74,8 +68,6 @@ namespace Core {
                     file++;
                 }
             }
-
-            _moveGenerator.Refresh();
         }
 
         public int GetPiece(Coord coord) {
@@ -185,7 +177,6 @@ namespace Core {
             var newBoard = new Board();
             Array.Copy(_squares, newBoard._squares, _squares.Length);
             newBoard._currentState = _currentState;
-            newBoard._moveGenerator.Refresh();
             newBoard._history = new Stack<BoardState>(_history);
             return newBoard;
         }

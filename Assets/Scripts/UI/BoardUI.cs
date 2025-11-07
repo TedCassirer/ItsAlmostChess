@@ -1,3 +1,4 @@
+using System.Collections;
 using Core;
 using UI;
 using UnityEngine;
@@ -6,6 +7,7 @@ using Utils;
 
 public class BoardUI : MonoBehaviour {
     public bool showThreats;
+    public float animationSpeed = 0.35f;
 
     private Board _board;
     private MoveGenerator _moveGenerator;
@@ -25,7 +27,7 @@ public class BoardUI : MonoBehaviour {
     }
 
     [ContextMenu("Create Board UI")]
-    private void CreateBoardUI() {
+    public void CreateBoardUI() {
         DeleteBoardUI();
         var boardGO = new GameObject("Chess board");
         boardGO.transform.parent = transform;
@@ -86,7 +88,7 @@ public class BoardUI : MonoBehaviour {
             square.ApplyTheme(boardTheme);
     }
 
-    public void UpdatePosition(Board board) {
+    public void UpdatePieces(Board board) {
         _board = board;
         _moveGenerator = new MoveGenerator(board);
         for (var rank = 0; rank < 8; rank++)
@@ -94,6 +96,35 @@ public class BoardUI : MonoBehaviour {
             var piece = board.GetPiece(file, rank);
             _squarePieceRenderers[file, rank].sprite = pieceTheme.GetPieceSprite(piece);
         }
+
+        ResetSquares();
+    }
+
+    public void OnMoveChosen(Move move, bool animate = false) {
+        SpriteRenderer pieceRenderer = _squarePieceRenderers[move.From.File, move.From.Rank];
+        BoardSquare targetSquare = _squares[move.To.File, move.To.Rank];
+        if (animate) {
+            StartCoroutine(AnimateMove(pieceRenderer, targetSquare));
+        }
+        else {
+            UpdatePieces(_board);
+            ResetSquares();
+        }
+    }
+
+    private IEnumerator AnimateMove(SpriteRenderer pieceRenderer, BoardSquare targetSquare) {
+        Vector3 startPos = pieceRenderer.transform.position;
+        Vector3 endPos = targetSquare.transform.position + new Vector3(0f, 0f, PieceDepth);
+        float elapsed = 0f;
+
+        while (elapsed < animationSpeed) {
+            pieceRenderer.transform.position = Vector3.Lerp(startPos, endPos, elapsed / animationSpeed);
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        pieceRenderer.transform.localPosition = new Vector3(0f, 0f, PieceDepth);
+        UpdatePieces(_board);
         ResetSquares();
     }
 
