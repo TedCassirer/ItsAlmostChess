@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using Random = System.Random;
 
 namespace Core.AI {
-    public class MinMax : AIPlayer {
+    public class MiniMaxV1 : AIPlayer {
         private static readonly Random _random = new();
 
         private static readonly Dictionary<int, int> PieceValues = new() {
@@ -18,12 +18,12 @@ namespace Core.AI {
         private Board _board;
         private const int MaxDepth = 4;
 
-        public MinMax(Board board) : base(board) {
+        public MiniMaxV1(Board board) : base(board) {
             _board = board;
         }
 
 
-        protected override Move ChooseMove() {
+        protected override Move? GetNextMove() {
             List<Move> legalMoves = GetLegalMoves();
             int bestScore = Int32.MaxValue;
             List<Move> bestMoves = new List<Move>();
@@ -38,7 +38,7 @@ namespace Core.AI {
                     bestMoves.Add(move);
                 }
             }
-
+            if (bestMoves.Count == 0) return null;
             var randomIndex = _random.Next(bestMoves.Count);
             return bestMoves[randomIndex];
         }

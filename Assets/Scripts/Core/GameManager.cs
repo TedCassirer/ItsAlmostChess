@@ -1,3 +1,4 @@
+using System.Collections;
 using Core.AI;
 using UnityEngine;
 
@@ -7,6 +8,9 @@ namespace Core {
         private Board _board = new();
         private MoveGenerator _moveGenerator;
         private Player _whitePlayer;
+        public bool BlackIsAi;
+        public bool WhiteIsAi;
+        public float AiMoveDelay = 1f;
         private Player _blackPlayer;
         private Player playerToMove => _board.IsWhitesTurn ? _whitePlayer : _blackPlayer;
 
@@ -21,11 +25,24 @@ namespace Core {
             _board.LoadFENPosition(startingPosition);
             boardUI.UpdatePieces(_board);
             _moveGenerator.Refresh();
-            _whitePlayer = new Human(_board, boardUI, _moveGenerator);
-            _whitePlayer.OnMoveChosen += OnMoveChosen;
+            if (WhiteIsAi) {
+            }
 
-            _blackPlayer = new MinMax(_board);
-            _blackPlayer.OnMoveChosen += OnMoveChosen;
+            _whitePlayer = GetPlayer(WhiteIsAi);
+            _blackPlayer = GetPlayer(BlackIsAi);
+        }
+
+        private Player GetPlayer(bool isAi) {
+            Player player;
+            if (isAi) {
+                player = new MiniMaxV2(_board);
+            }
+            else {
+                player = new Human(_board, boardUI, _moveGenerator);
+            }
+
+            player.OnMoveChosen += OnMoveChosen;
+            return player;
         }
 
         public void Start() {
@@ -43,6 +60,7 @@ namespace Core {
             _board.LoadFENPosition(startingPosition);
             _moveGenerator.Refresh();
             boardUI.UpdatePieces(_board);
+            OnEnable();
             Start();
         }
 
@@ -51,10 +69,25 @@ namespace Core {
             _blackPlayer?.Update();
         }
 
-        private void OnMoveChosen(Move move) {
-            _board.CommitMove(move);
-            boardUI.OnMoveChosen(move, playerToMove.IsHuman);
+        private void OnMoveChosen(Move? move) {
+            if (move == null) return;
+            bool wasAi = playerToMove.IsAI;
+            _board.CommitMove(move.Value);
             _moveGenerator.Refresh();
+            boardUI.OnMoveChosen(move.Value, wasAi);
+
+            if (WhiteIsAi && BlackIsAi) {
+                // Sleep for a short duration to allow UI to update
+                StartCoroutine(DelayedNextTurn(AiMoveDelay));
+            }
+            else {
+                playerToMove.NotifyTurnToPlay();
+            }
+        }
+
+        private IEnumerator DelayedNextTurn(float delay) {
+            yield return new WaitForSeconds(delay);
+            
             playerToMove.NotifyTurnToPlay();
         }
     }

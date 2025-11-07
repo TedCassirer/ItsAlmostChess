@@ -62,6 +62,7 @@ namespace Core {
                 if (_isTurnToPlay && _boardUI.TryGetSquareUnderMouse(out Coord targetSquare)) {
                     if (targetSquare.Equals(_selectedPieceSquare)) return;
                     if (_moveGenerator.ValidateMove(_selectedPieceSquare, targetSquare, out Move validMove)) {
+                        _isTurnToPlay = false;
                         ChooseMove(validMove);
                     }
                 }

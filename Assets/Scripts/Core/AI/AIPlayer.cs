@@ -1,5 +1,7 @@
+using System.Threading.Tasks;
+
 namespace Core.AI {
-    public abstract class AIPlayer: Player {
+    public abstract class AIPlayer : Player {
         protected AIPlayer(Board board) : base(board) {
         }
 
@@ -8,10 +10,12 @@ namespace Core.AI {
         }
 
         public override void NotifyTurnToPlay() {
-            Move move = ChooseMove();
-            ChooseMove(move);
+            Move? move = GetNextMove();
+            if (move.HasValue) {
+                ChooseMove(move.Value);
+            }
         }
-        
-        protected abstract Move ChooseMove();
+
+        protected abstract Move? GetNextMove();
     }
 }

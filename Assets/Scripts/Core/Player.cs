@@ -1,8 +1,9 @@
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Core {
     public abstract class Player {
-        public event System.Action<Move> OnMoveChosen;
+        public event System.Action<Move?> OnMoveChosen;
         
         private readonly Board _board;
         private readonly MoveGenerator _moveGenerator;
@@ -14,16 +15,19 @@ namespace Core {
         
         public abstract void Update();
 
-        protected virtual void ChooseMove(Move move) {
+        protected void ChooseMove(Move move) {
             OnMoveChosen?.Invoke(move);
         }
 
         public abstract void NotifyTurnToPlay();
         
         public List<Move> GetLegalMoves() {
-            return _moveGenerator.LegalMoves();
+            _moveGenerator.Refresh();
+            return _moveGenerator.LegalMoves().OrderBy(m => -m.CapturedPiece).ToList();
+            // return _moveGenerator.LegalMoves();
         }
 
         public bool IsHuman =>  this is Human;
+        public bool IsAI =>  this is AI.AIPlayer;
     }
 }
