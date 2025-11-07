@@ -1,17 +1,15 @@
 using System.Collections.Generic;
 using System.Linq;
+using UnityEngine;
 
 namespace Core {
-    public abstract class Player {
+    public abstract class Player: MonoBehaviour {
         public event System.Action<Move?> OnMoveChosen;
         
-        private readonly Board _board;
-        private readonly MoveGenerator _moveGenerator;
-        
-        public Player(Board board) {
-            _board = board;
-            _moveGenerator = new MoveGenerator(_board);
-        }
+        protected Board Board;
+
+
+        public abstract void Init(Board board);
         
         public abstract void Update();
 
@@ -21,12 +19,6 @@ namespace Core {
 
         public abstract void NotifyTurnToPlay();
         
-        public List<Move> GetLegalMoves() {
-            _moveGenerator.Refresh();
-            return _moveGenerator.LegalMoves().OrderBy(m => -m.CapturedPiece).ToList();
-            // return _moveGenerator.LegalMoves();
-        }
-
         public bool IsHuman =>  this is Human;
         public bool IsAI =>  this is AI.AIPlayer;
     }

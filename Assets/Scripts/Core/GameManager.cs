@@ -1,5 +1,6 @@
 using System.Collections;
 using Core.AI;
+using Unity.VisualScripting;
 using UnityEngine;
 
 namespace Core {
@@ -25,27 +26,26 @@ namespace Core {
             _board.LoadFENPosition(startingPosition);
             boardUI.UpdatePieces(_board);
             _moveGenerator.Refresh();
-            if (WhiteIsAi) {
-            }
 
-            _whitePlayer = GetPlayer(WhiteIsAi);
-            _blackPlayer = GetPlayer(BlackIsAi);
+
         }
 
         private Player GetPlayer(bool isAi) {
             Player player;
             if (isAi) {
-                player = new MiniMaxV2(_board);
+                player = transform.AddComponent<AIPlayer>();
             }
             else {
-                player = new Human(_board, boardUI, _moveGenerator);
+                player = transform.AddComponent<Human>();
             }
-
+            player.Init(_board);
             player.OnMoveChosen += OnMoveChosen;
             return player;
         }
 
         public void Start() {
+            _whitePlayer = GetPlayer(WhiteIsAi);
+            _blackPlayer = GetPlayer(BlackIsAi);
             Debug.Log("Game started. White to move.");
             if (_board.IsWhitesTurn)
                 _whitePlayer.NotifyTurnToPlay();

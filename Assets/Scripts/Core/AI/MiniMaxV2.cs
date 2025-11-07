@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
-using UnityEngine;
+using System.Linq;
 using Random = System.Random;
 
 namespace Core.AI {
-    public class MiniMaxV2 : AIPlayer {
+    public class MiniMaxV2: IMoveProvider {
         private static readonly Random _random = new();
 
         private static readonly Dictionary<int, int> PieceValues = new() {
@@ -19,46 +19,53 @@ namespace Core.AI {
         private Board _board;
         private const int MaxDepth = 4;
 
-        public MiniMaxV2(Board board) : base(board) {
+        public MiniMaxV2(Board board) {
             _board = board;
         }
 
 
-        protected override Move? GetNextMove() {
-            var startTime = DateTime.Now;
-            List<Move> legalMoves = GetLegalMoves();
+        public Move? GetNextMove() {
+            var moveGenerator = new MoveGenerator(_board);
+            List<Move> legalMoves = moveGenerator.LegalMoves();
             if (legalMoves.Count == 0) return null;
 
             int bestScore = Int32.MinValue;
             List<Move> bestMoves = new();
 
-            foreach (var move in legalMoves) {
-                _board.CommitMove(move);
-                int moveScore = -MiniMax(1);
-                _board.UndoMove();
+            legalMoves.AsParallel()
+                .WithDegreeOfParallelism(Environment.ProcessorCount)
+                .Select(move => {
+                    Board clone = _board.Clone();
+                    clone.CommitMove(move);
+                    int moveScore = -MiniMax(clone, 1);
+                    return (move, moveScore);
+                })
+                .AsSequential()
+                .ToList()
+                .ForEach(tuple => {
+                    (Move move, var moveScore) = tuple;
+                    if (moveScore > bestScore) {
+                        bestScore = moveScore;
+                        bestMoves.Clear();
+                        bestMoves.Add(move);
+                    }
+                    else if (moveScore == bestScore) {
+                        bestMoves.Add(move);
+                    }
+                });
 
-                if (moveScore > bestScore) {
-                    bestScore = moveScore;
-                    bestMoves.Clear();
-                    bestMoves.Add(move);
-                }
-                else if (moveScore == bestScore) {
-                    bestMoves.Add(move);
-                }
-            }
 
-            Debug.Log($"Current board {BoardEvaluation(_board)}; BestScore: {bestScore}; Moves considered: {legalMoves.Count}");
             var randomIndex = _random.Next(bestMoves.Count);
-            Debug.Log($"MiniMaxV2 chose move in {(DateTime.Now - startTime).TotalMilliseconds} ms");
             return bestMoves[randomIndex];
         }
 
-        private int MiniMax(int depth, int alpha = Int32.MinValue, int beta = Int32.MaxValue) {
+        private int MiniMax(Board board, int depth, int alpha = Int32.MinValue, int beta = Int32.MaxValue) {
             if (depth == MaxDepth) {
-                return BoardEvaluation(_board);
+                return BoardEvaluation(board);
             }
 
-            var legalMoves = GetLegalMoves();
+            var movesGenerator = new MoveGenerator(board);
+            var legalMoves = movesGenerator.LegalMoves().OrderBy(m => -m.CapturedPiece).ToList();
             if (legalMoves.Count == 0) {
                 // TODO: distinguish checkmate vs stalemate using board state (e.g., inCheck)
                 return -10_000; // Losing (no legal moves) from side-to-move perspective
@@ -66,9 +73,9 @@ namespace Core.AI {
 
             int bestScore = Int32.MinValue;
             foreach (var mv in legalMoves) {
-                _board.CommitMove(mv);
-                int score = -MiniMax(depth + 1, -beta, -alpha);
-                _board.UndoMove();
+                board.CommitMove(mv);
+                int score = -MiniMax(board, depth + 1, -beta, -alpha);
+                board.UndoMove();
 
                 if (score > bestScore) {
                     bestScore = score;
@@ -92,7 +99,7 @@ namespace Core.AI {
                 score += PieceValues[Piece.Type(piece)] * (Piece.IsColor(piece, Piece.White) ? 1 : -1);
             }
 
-            return score * (_board.IsWhitesTurn ? 1 : -1);
+            return score * (board.IsWhitesTurn ? 1 : -1);
         }
     }
 }

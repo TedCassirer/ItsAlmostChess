@@ -1,18 +1,19 @@
-﻿using UnityEngine.InputSystem;
+﻿using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace Core {
-    public class Human : Player {
-        private readonly BoardUI _boardUI;
-        private readonly Board _board;
+    public class Human: Player {
+        private BoardUI _boardUI;
         private Coord _selectedPieceSquare;
         private bool _isDraggingPiece;
-        private MoveGenerator _moveGenerator;
         private bool _isTurnToPlay;
-
-        public Human(Board board, BoardUI boardUI, MoveGenerator moveGenerator) : base(board) {
+        private Board _board;
+        private MoveGenerator _moveGenerator;
+        
+        public override void Init(Board board) {
             _board = board;
-            _boardUI = boardUI;
-            _moveGenerator = moveGenerator;
+            _boardUI = FindFirstObjectByType<BoardUI>();
+            _moveGenerator = new MoveGenerator(_board);
         }
 
         public override void Update() {
@@ -22,6 +23,7 @@ namespace Core {
 
         public override void NotifyTurnToPlay() {
             _isTurnToPlay = true;
+            _moveGenerator.Refresh();
         }
 
         private void HandleInput() {
@@ -64,6 +66,7 @@ namespace Core {
                     if (_moveGenerator.ValidateMove(_selectedPieceSquare, targetSquare, out Move validMove)) {
                         _isTurnToPlay = false;
                         ChooseMove(validMove);
+                        _moveGenerator.Refresh();
                     }
                 }
             }

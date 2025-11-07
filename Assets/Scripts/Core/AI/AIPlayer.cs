@@ -1,21 +1,41 @@
+using System.Collections;
 using System.Threading.Tasks;
+using UnityEngine;
 
 namespace Core.AI {
-    public abstract class AIPlayer : Player {
-        protected AIPlayer(Board board) : base(board) {
-        }
+    public class AIPlayer : Player {
+        private IMoveProvider _moveProvider;
 
         public override void Update() {
-            // AI does not need to update per frame
         }
+
+        public override void Init(Board board) {
+            Board = board;
+            _moveProvider = new RandomAI(Board);
+        }
+
 
         public override void NotifyTurnToPlay() {
-            Move? move = GetNextMove();
-            if (move.HasValue) {
-                ChooseMove(move.Value);
-            }
+            StartCoroutine(ChooseNextMoveCoroutine());
         }
 
-        protected abstract Move? GetNextMove();
+        private IEnumerator ChooseNextMoveCoroutine() {
+            var task = Task.Run(GetNextMove); // heavy work off-thread
+
+            while (!task.IsCompleted)
+                yield return null; // keep UI responsive
+
+            if (task.IsFaulted) {
+                Debug.LogException(task.Exception);
+                yield break;
+            }
+
+            var move = task.Result; // back on main thread here
+            if (move.HasValue) ChooseMove(move.Value); // safe to touch Unity API
+        }
+
+        private Move? GetNextMove() {
+            return _moveProvider.GetNextMove();
+        }
     }
 }

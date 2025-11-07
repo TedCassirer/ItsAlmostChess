@@ -177,7 +177,7 @@ namespace Core {
             var newBoard = new Board();
             Array.Copy(_squares, newBoard._squares, _squares.Length);
             newBoard._currentState = _currentState;
-            newBoard._history = new Stack<BoardState>(_history);
+            newBoard._history = new Stack<BoardState>(new Stack<BoardState>(_history));
             return newBoard;
         }
 

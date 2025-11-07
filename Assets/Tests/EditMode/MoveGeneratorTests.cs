@@ -113,6 +113,8 @@ namespace Tests {
             /***
              * For 5, got 4_865_167, 1 min 27 seconds with root split parallel, 54s with ConcurrentQueue.
              * Some optimizations later it's down to 8 seconds. Still copying the board for each move though.
+             *
+             * Got 4865351 after fixing a bug for checking if a piece is pinned.
              */
             Load(StartingPosition);
             var moveCount = generator.CountMovesParallel(depth);

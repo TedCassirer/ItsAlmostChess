@@ -404,6 +404,9 @@ namespace Core {
 
             var dRank = _friendlyKing.Rank - square.Rank;
             var dFile = _friendlyKing.File - square.File;
+            if (dRank != 0 && dFile != 0 && Math.Abs(dRank) != Math.Abs(dFile)) {
+                return _ => true;
+            }
             var dir = new Direction(Math.Clamp(dFile, -1, 1), Math.Clamp(dRank, -1, 1)); // Direction towards the king
             if (dir is { IsDiagonal: false, IsCardinal: false }) {
                 return _ => true;
