@@ -89,7 +89,7 @@ namespace Core {
             StopAllCoroutines();
             _board.LoadFenPosition(startingPosition);
             _moveGenerator.Refresh();
-            boardUI.UpdatePieces(_board);
+            boardUI.Reset();
             InitializePlayers();
             StartTurn();
         }
@@ -110,7 +110,7 @@ namespace Core {
         }
 
         private void NextTurn() {
-            if (WhiteIsAI && BlackIsAI) {
+            if (_whitePlayer.IsAI && _blackPlayer.IsAI) {
                 StartCoroutine(DelayedNextTurn(AIMoveDelay));
             } else {
                 PlayerToMove.NotifyTurnToPlay();

@@ -120,6 +120,13 @@ public class BoardUI : MonoBehaviour {
         Destroy(animateGO);
     }
 
+
+    public void Reset() {
+        _lastMove = null;
+        UpdatePieces(_board);
+        ResetSquares();
+    }
+    
     // Update is called once per frame
     public void ResetSquares() {
         for (var rank = 0; rank < 8; rank++)

@@ -17,7 +17,7 @@ namespace Core.AI {
         };
 
         private Board _board;
-        private const int MaxDepth = 5;
+        private const int MaxDepth = 4;
 
         public MiniMaxV2(Board board) {
             _board = board;
