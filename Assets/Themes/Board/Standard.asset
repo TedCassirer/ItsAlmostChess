@@ -16,6 +16,8 @@ MonoBehaviour:
   lightSquares:
     normal: {r: 0.94, g: 0.846, b: 0.752, a: 0}
     highlighted: {r: 0.46226418, g: 0.11120505, b: 0.11120505, a: 1}
+    moveIndicator: {r: 0.9281031, g: 0.9528302, b: 0.31910825, a: 0}
   darkSquares:
     normal: {r: 0.66, g: 0.47520003, b: 0.396, a: 0}
-    highlighted: {r: 0.4339623, g: 0.2763439, b: 0.2763439, a: 1}
+    highlighted: {r: 0.29411766, g: 0.10980392, b: 0.10980392, a: 1}
+    moveIndicator: {r: 0.6433536, g: 0.6603774, b: 0.22116414, a: 0}

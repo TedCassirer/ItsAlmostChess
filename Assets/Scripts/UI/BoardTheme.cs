@@ -15,6 +15,7 @@ namespace UI {
         public struct SquareColours {
             public Color normal;
             [FormerlySerializedAs("selected")] public Color highlighted;
+            public Color moveIndicator;
         }
 
         public Color Normal(Coord c) => c.IsLightSquare() ? lightSquares.normal : darkSquares.normal;

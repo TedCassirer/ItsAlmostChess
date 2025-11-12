@@ -7,7 +7,7 @@ namespace Core {
         private Coord _selectedPieceSquare;
         private bool _isDraggingPiece;
         private MoveGenerator _moveGenerator;
-        
+
         protected override void OnInitialized() {
             _boardUI = FindFirstObjectByType<BoardUI>();
             _moveGenerator = new MoveGenerator(Board);
@@ -29,7 +29,7 @@ namespace Core {
                 if (Mouse.current.leftButton.wasPressedThisFrame)
                     HandleSelectSquare(targetSquare);
                 if (Mouse.current.rightButton.wasPressedThisFrame)
-                    _boardUI.GetSquare(targetSquare).SetHighlighted(true);
+                    _boardUI.GetSquare(targetSquare).HighlightColor();
             }
         }
 

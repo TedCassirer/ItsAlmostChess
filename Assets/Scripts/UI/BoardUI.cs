@@ -10,7 +10,6 @@ public class BoardUI : MonoBehaviour {
     public float animationSpeed = 0.35f;
 
     private Board _board;
-    private MoveGenerator _moveGenerator;
     private readonly BoardSquare[,] _squares = new BoardSquare[8, 8];
     private readonly SpriteRenderer[,] _squarePieceRenderers = new SpriteRenderer[8, 8];
 
@@ -20,6 +19,7 @@ public class BoardUI : MonoBehaviour {
     private const float PieceDragDepth = -0.3f;
     private const float PieceScale = 4.5f;
     private Camera _cam;
+    private Move? _lastMove;
 
 
     private void Awake() {
@@ -49,8 +49,6 @@ public class BoardUI : MonoBehaviour {
 
             _squares[file, rank] = square;
             _squarePieceRenderers[file, rank] = pieceRenderer;
-
-            square.ApplyTheme(boardTheme);
         }
     }
 
@@ -62,35 +60,15 @@ public class BoardUI : MonoBehaviour {
 
 
     void OnEnable() {
-        // Subscribe to theme change
         CreateBoardUI();
-        if (boardTheme != null)
-            boardTheme.Changed += OnThemeChanged;
     }
 
     void OnDisable() {
-        // Always unsubscribe to avoid leaks
-        if (boardTheme != null)
-            boardTheme.Changed -= OnThemeChanged;
         DeleteBoardUI();
     }
-
-
-#if UNITY_EDITOR
-    private void OnValidate() {
-        OnThemeChanged();
-    }
-#endif
-
-    private void OnThemeChanged() {
-        Debug.Log("Theme changed!");
-        foreach (var square in GetComponentsInChildren<BoardSquare>(true))
-            square.ApplyTheme(boardTheme);
-    }
-
+    
     public void UpdatePieces(Board board) {
         _board = board;
-        _moveGenerator = new MoveGenerator(board);
         for (var rank = 0; rank < 8; rank++)
         for (var file = 0; file < 8; file++) {
             var piece = board.GetPiece(file, rank);
@@ -101,39 +79,60 @@ public class BoardUI : MonoBehaviour {
     }
 
     public void OnMoveChosen(Move move, bool animate = false) {
-        SpriteRenderer pieceRenderer = _squarePieceRenderers[move.From.File, move.From.Rank];
-        BoardSquare targetSquare = _squares[move.To.File, move.To.Rank];
+        _lastMove = move;
+        ResetSquares();
         if (animate) {
-            StartCoroutine(AnimateMove(pieceRenderer, targetSquare));
+            StartCoroutine(AnimateMove(move));
         }
         else {
             UpdatePieces(_board);
-            ResetSquares();
         }
+        
+        BoardSquare fromSquare = _squares[move.From.File, move.From.Rank];
+        BoardSquare toSquare = _squares[move.To.File, move.To.Rank];
+        fromSquare.MoveIndicatorColor();
+        toSquare.MoveIndicatorColor();
     }
 
-    private IEnumerator AnimateMove(SpriteRenderer pieceRenderer, BoardSquare targetSquare) {
-        Vector3 startPos = pieceRenderer.transform.position;
-        Vector3 endPos = targetSquare.transform.position + new Vector3(0f, 0f, PieceDepth);
+    private IEnumerator AnimateMove(Move move) {
+        var animateGO = new GameObject("Animate Move");
+        var animateRenderer = animateGO.AddComponent<SpriteRenderer>();
+        SpriteRenderer fromPieceRenderer = _squarePieceRenderers[move.From.File, move.From.Rank];
+        SpriteRenderer toPieceRenderer = _squarePieceRenderers[move.To.File, move.To.Rank];
+        BoardSquare toSquare = _squares[move.To.File, move.To.Rank];
+        
+        Vector3 startPos = new Vector3(fromPieceRenderer.transform.position.x, fromPieceRenderer.transform.position.y, PieceDragDepth);
+        Vector3 endPos = new Vector3(toSquare.transform.position.x, toSquare.transform.position.y, PieceDragDepth);
+        animateRenderer.transform.position = startPos;
+        animateRenderer.transform.localScale = Vector3.one / PieceScale;
+        animateRenderer.sprite = pieceTheme.GetPieceSprite(_board.GetPiece(move.To.File, move.To.Rank));
+        fromPieceRenderer.sprite = null;
         float elapsed = 0f;
 
         while (elapsed < animationSpeed) {
-            pieceRenderer.transform.position = Vector3.Lerp(startPos, endPos, elapsed / animationSpeed);
+            animateRenderer.transform.position = Vector3.Lerp(startPos, endPos, elapsed / animationSpeed);
             elapsed += Time.deltaTime;
             yield return null;
         }
-
-        pieceRenderer.transform.localPosition = new Vector3(0f, 0f, PieceDepth);
-        UpdatePieces(_board);
-        ResetSquares();
+        
+        toPieceRenderer.sprite = pieceTheme.GetPieceSprite(_board.GetPiece(move.To.File, move.To.Rank));
+        
+        Destroy(animateGO);
     }
 
     // Update is called once per frame
     public void ResetSquares() {
         for (var rank = 0; rank < 8; rank++)
         for (var file = 0; file < 8; file++) {
-            _squares[file, rank].SetHighlighted(false);
+            _squares[file, rank].NormalColor();
             _squares[file, rank].ShowMoveMarker(false);
+        }
+        
+        if (_lastMove != null) {
+            BoardSquare fromSquare = _squares[_lastMove.Value.From.File, _lastMove.Value.From.Rank];
+            BoardSquare toSquare = _squares[_lastMove.Value.To.File, _lastMove.Value.To.Rank];
+            fromSquare.MoveIndicatorColor();
+            toSquare.MoveIndicatorColor();
         }
 
         if (showThreats) HighlightAllThreats();
@@ -157,7 +156,7 @@ public class BoardUI : MonoBehaviour {
     }
 
     public void HighlightSquare(Coord square) {
-        GetSquare(square).SetHighlighted(true);
+        GetSquare(square).HighlightColor();
     }
 
     public void HighlightValidMoves(Coord square) {
@@ -168,7 +167,7 @@ public class BoardUI : MonoBehaviour {
     public void HighlightThreats(Coord square) {
         var generator = new MoveGenerator(_board);
         foreach (var attackedSquare in generator.GetThreats(square))
-            GetSquare(attackedSquare).SetHighlighted(true);
+            GetSquare(attackedSquare).HighlightColor();
     }
 
     public void HighlightAllThreats() {

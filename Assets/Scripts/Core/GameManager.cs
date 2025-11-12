@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using Core.AI;
 using Unity.VisualScripting;
@@ -15,6 +16,8 @@ namespace Core {
         private Player _blackPlayer;
         private Player PlayerToMove => _board.IsWhitesTurn ? _whitePlayer : _blackPlayer;
 
+        public event Action<Move, bool> OnMoveExecuted; // (move, wasAi)
+
         public bool BlackIsAI => blackIsAi;
         public bool WhiteIsAI => whiteIsAi;
         public float AIMoveDelay => aiMoveDelay;
@@ -24,36 +27,58 @@ namespace Core {
 
 
         private void OnEnable() {
-            _moveGenerator = new MoveGenerator(_board);
-            boardUI = FindFirstObjectByType<BoardUI>();
-            boardUI.CreateBoardUI();
-            _board.LoadFenPosition(startingPosition);
-            boardUI.UpdatePieces(_board);
-            _moveGenerator.Refresh();
-
-
+            InitializeBoard();
         }
 
-        private Player GetPlayer(bool isAi) {
-            Player player;
-            if (isAi) {
-                player = transform.AddComponent<AIPlayer>();
+        private void OnDisable() {
+            ClearPlayers();
+        }
+
+        private void InitializeBoard() {
+            if (_board == null) {
+                _board = new Board();
             }
-            else {
-                player = transform.AddComponent<Human>();
+            if (_moveGenerator == null) {
+                _moveGenerator = new MoveGenerator(_board);
             }
-            player.Init(_board);
-            player.OnMoveChosen += OnMoveChosen;
-            return player;
+            if (boardUI == null) {
+                boardUI = FindFirstObjectByType<BoardUI>();
+            }
+            boardUI.CreateBoardUI();
+            _board.LoadFenPosition(startingPosition);
+            _moveGenerator.Refresh();
+            boardUI.UpdatePieces(_board);
+        }
+
+        private void InitializePlayers() {
+            ClearPlayers();
+            _whitePlayer = GetPlayer(WhiteIsAI);
+            _blackPlayer = GetPlayer(BlackIsAI);
+        }
+
+        private void ClearPlayers() {
+            if (_whitePlayer != null) {
+                _whitePlayer.OnMoveChosen -= OnMoveChosen;
+                Destroy(_whitePlayer);
+                _whitePlayer = null;
+            }
+            if (_blackPlayer != null) {
+                _blackPlayer.OnMoveChosen -= OnMoveChosen;
+                Destroy(_blackPlayer);
+                _blackPlayer = null;
+            }
         }
 
         public void Start() {
-            _whitePlayer = GetPlayer(WhiteIsAI);
-            _blackPlayer = GetPlayer(BlackIsAI);
+            InitializePlayers();
+            StartTurn();
             Debug.Log("Game started. White to move.");
-            if (_board.IsWhitesTurn)
+        }
+
+        private void StartTurn() {
+            if (_board.IsWhitesTurn) {
                 _whitePlayer.NotifyTurnToPlay();
-            else {
+            } else {
                 _blackPlayer.NotifyTurnToPlay();
             }
         }
@@ -61,11 +86,12 @@ namespace Core {
         [ContextMenu("Reset Game")]
         public void ResetGame() {
             Debug.Log("Resetting game...");
+            StopAllCoroutines();
             _board.LoadFenPosition(startingPosition);
             _moveGenerator.Refresh();
             boardUI.UpdatePieces(_board);
-            OnEnable();
-            Start();
+            InitializePlayers();
+            StartTurn();
         }
 
         public void Update() {
@@ -79,20 +105,33 @@ namespace Core {
             _board.CommitMove(move.Value);
             _moveGenerator.Refresh();
             boardUI.OnMoveChosen(move.Value, wasAi);
+            OnMoveExecuted?.Invoke(move.Value, wasAi);
+            NextTurn();
+        }
 
+        private void NextTurn() {
             if (WhiteIsAI && BlackIsAI) {
-                // Sleep for a short duration to allow UI to update
                 StartCoroutine(DelayedNextTurn(AIMoveDelay));
-            }
-            else {
+            } else {
                 PlayerToMove.NotifyTurnToPlay();
             }
         }
 
         private IEnumerator DelayedNextTurn(float delay) {
             yield return new WaitForSeconds(delay);
-            
             PlayerToMove.NotifyTurnToPlay();
+        }
+
+        private Player GetPlayer(bool isAi) {
+            Player player;
+            if (isAi) {
+                player = transform.AddComponent<AIPlayer>();
+            } else {
+                player = transform.AddComponent<Human>();
+            }
+            player.Init(_board);
+            player.OnMoveChosen += OnMoveChosen;
+            return player;
         }
     }
 }

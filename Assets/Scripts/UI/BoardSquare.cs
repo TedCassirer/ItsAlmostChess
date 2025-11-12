@@ -1,21 +1,23 @@
 ﻿using Core;
+using UnityEditor.UI;
 using UnityEngine;
 
 namespace UI {
     public class BoardSquare : MonoBehaviour {
         private MeshRenderer _square, _highlight, _moveMarker;
-        private Coord _coord;
+        private BoardTheme.SquareColours _squareColors;
 
         public static BoardSquare Create(GameObject parent, Coord coord, BoardTheme boardTheme) {
             var square = parent.AddComponent<BoardSquare>();
             square.tag = "BoardSquare";
-            square.Init(coord, boardTheme);
-            square.ApplyTheme(boardTheme);
+            var squareColors = coord.IsLightSquare() ? boardTheme.lightSquares : boardTheme.darkSquares;
+            square.Init(coord, squareColors);
+            square.NormalColor();
             return square;
         }
 
-        private void Init(Coord coord, BoardTheme theme) {
-            _coord = coord;
+        private void Init(Coord coord, BoardTheme.SquareColours squareColors) {
+            _squareColors = squareColors;
 
             var shader = Shader.Find("Unlit/Color");
             // base square
@@ -23,20 +25,9 @@ namespace UI {
             square.name = "Square";
             square.transform.SetParent(transform, false);
             _square = square.GetComponent<MeshRenderer>();
-            _square.sharedMaterial = new Material(theme.shader) {
-                color = theme.Normal(coord)
+            _square.sharedMaterial = new Material(shader) {
+                color = squareColors.normal
             };
-
-            // highlight quad
-            var highlightObj = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            highlightObj.name = "Highlight";
-            highlightObj.transform.SetParent(transform, false);
-            highlightObj.transform.localPosition = new Vector3(0, 0, -0.002f);
-            _highlight = highlightObj.GetComponent<MeshRenderer>();
-            _highlight.sharedMaterial = new Material(theme.shader) {
-                color = theme.Highlighted(coord)
-            };
-            _highlight.enabled = false;
 
             // move marker circle 
             var marker = GameObject.CreatePrimitive(PrimitiveType.Sphere);
@@ -50,19 +41,19 @@ namespace UI {
             };
             _moveMarker.enabled = false;
         }
-
-        public void ApplyTheme(BoardTheme theme) {
-            if (_square == null || _highlight == null) return;
-            _square.sharedMaterial = new Material(theme.shader) {
-                color = theme.Normal(_coord)
-            };
-
-            _highlight.sharedMaterial = new Material(theme.shader) {
-                color = theme.Highlighted(_coord)
-            };
+        
+        public void HighlightColor() {
+            _square.sharedMaterial.color = _squareColors.highlighted;
         }
-
-        public void SetHighlighted(bool on) => _highlight.enabled = on;
+        
+        public void NormalColor() {
+            _square.sharedMaterial.color = _squareColors.normal;
+        }
+        
+        public void MoveIndicatorColor() {
+            _square.sharedMaterial.color = _squareColors.moveIndicator;
+        }
+        
         public void ShowMoveMarker(bool on) => _moveMarker.enabled = on;
     }
 }
