@@ -46,7 +46,7 @@ namespace Core {
         }
 
         public override string ToString() {
-            return $"Move({From}, {To}, {CapturedPiece})";
+            return $"{From}{To}";
         }
 
         public bool Equals(Move other) {

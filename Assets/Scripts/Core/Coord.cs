@@ -16,7 +16,7 @@ namespace Core {
             File = file;
             Rank = rank;
         }
-
+        
         public static Coord Create(int file, int rank) {
             if (file < 0 || file >= 8 || rank < 0 || rank >= 8)
                 return new Coord(file, rank);

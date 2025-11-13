@@ -109,7 +109,7 @@ namespace Core {
 
         private void OnMoveChosen(Move? move) {
             if (move == null) return;
-            bool wasAi = PlayerToMove.IsAI;
+            var wasAi = PlayerToMove.IsAI;
             _board.CommitMove(move.Value);
             _moveGenerator.Refresh();
             OnMoveExecuted?.Invoke(move.Value, wasAi);

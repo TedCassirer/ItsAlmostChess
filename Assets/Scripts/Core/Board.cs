@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Core {
     internal struct BoardState {
@@ -11,7 +12,7 @@ namespace Core {
         public Coord? EnPassantTarget;
         public int MoveNumber;
         public int HalfmoveClock;
-        public Move LastMove;
+        public Move? LastMove;
     }
 
     public class Board {
@@ -97,8 +98,12 @@ namespace Core {
 
             // Advance turn + clocks
             newState.IsWhitesTurn = !IsWhitesTurn;
-            newState.MoveNumber += IsWhitesTurn ? 0 : 1;
-            newState.HalfmoveClock++; // (Could be refined: reset on pawn move or capture)
+            newState.MoveNumber = _currentState.MoveNumber + (IsWhitesTurn ? 0 : 1);
+            newState.HalfmoveClock = _currentState.HalfmoveClock + 1;
+            if (Piece.Type(movingPiece) == Piece.Pawn || move.CapturedPiece != Piece.None) {
+                newState.HalfmoveClock = 0;
+            }
+
 
             // Push previous state and publish new
             _history.Push(_currentState);
@@ -106,20 +111,25 @@ namespace Core {
         }
 
         public void UndoMove() {
-            if (_history.Count == 0) {
+            if (!_currentState.LastMove.HasValue) {
                 return;
             }
-            Move move = _currentState.LastMove;
+
+            Move move = _currentState.LastMove.Value;
             _squares[move.From.File, move.From.Rank] = _squares[move.To.File, move.To.Rank];
-            _squares[move.To.File, move.To.Rank] = move.CapturedPiece;
-            if (move.PromotionPiece != Piece.None)
+            if (move.PromotionPiece != Piece.None) {
                 // Revert promotion
                 _squares[move.From.File, move.From.Rank] = Piece.Pawn | (IsWhitesTurn ? Piece.Black : Piece.White);
+            }
 
-            if (move.IsEnPassant) {
+            if (move.EnPassantCapturedPawnSquare != null) {
                 Coord capturedPawnSquare = move.EnPassantCapturedPawnSquare.Value;
+                _squares[move.To.File, move.To.Rank] = Piece.None;
                 _squares[capturedPawnSquare.File, capturedPawnSquare.Rank] =
                     Piece.Pawn | (IsWhitesTurn ? Piece.White : Piece.Black);
+            }
+            else {
+                _squares[move.To.File, move.To.Rank] = move.CapturedPiece;
             }
 
             if (move.IsCastling) {
@@ -225,8 +235,8 @@ namespace Core {
         }
 
         private void UpdateEnPassantSquare(Move move, ref BoardState newState) {
-            var movingPiece = _squares[move.From.File, move.From.Rank];
-            if (Piece.Type(movingPiece) != Piece.Pawn && Math.Abs(move.From.Rank - move.To.Rank) == 2) {
+            var movingPiece = GetPiece(move.To);
+            if (Piece.Type(movingPiece) == Piece.Pawn && Math.Abs(move.From.Rank - move.To.Rank) == 2) {
                 var epRank = (move.From.Rank + move.To.Rank) / 2;
                 newState.EnPassantTarget = Coord.Create(move.From.File, epRank);
             }
@@ -237,29 +247,37 @@ namespace Core {
 
         private void UpdateCastlingRights(Move move, ref BoardState newState) {
             // If king or rook moved or rook was captured on its initial square, revoke corresponding right.
-            bool MovedFrom(Coord c) {
-                return move.From.Equals(c);
+            Coord whiteKingsideRookSquare = Coord.Parse("h1");
+            Coord whiteQueensideRookSquare = Coord.Parse("a1");
+            Coord blackKingsideRookSquare = Coord.Parse("h8");
+            Coord blackQueensideRookSquare = Coord.Parse("a8");
+            Coord whiteKingSquare = Coord.Parse("e1");
+            Coord blackKingSquare = Coord.Parse("e8");
+
+
+            bool MovedFromOrTo(Coord c) {
+                return move.From.Equals(c) || move.To.Equals(c);
             }
 
-            bool MovedTo(Coord c) {
-                return move.To.Equals(c);
+            newState.WhiteCanCastleKingside &=
+                !(MovedFromOrTo(whiteKingSquare) || MovedFromOrTo(whiteKingsideRookSquare));
+            newState.WhiteCanCastleQueenside &=
+                !(MovedFromOrTo(whiteKingSquare) || MovedFromOrTo(whiteQueensideRookSquare));
+            newState.BlackCanCastleKingside &=
+                !(MovedFromOrTo(blackKingSquare) || MovedFromOrTo(blackKingsideRookSquare));
+            newState.BlackCanCastleQueenside &=
+                !(MovedFromOrTo(blackKingSquare) || MovedFromOrTo(blackQueensideRookSquare));
+        }
+
+        public void LogMoveHistory() {
+            Console.WriteLine("\nBoard Move History:");
+            foreach (BoardState boardState in _history.Reverse().Skip(1)) {
+                Console.WriteLine(
+                    $"{boardState.LastMove}, {boardState.MoveNumber} {(boardState.IsWhitesTurn ? "Black" : "White")}");
             }
 
-            // White rook squares: a1 (0,0), h1 (7,0); king square e1 (4,0)
-            var disableWhiteKingside = MovedFrom(Coord.Create(4, 0)) || MovedFrom(Coord.Create(7, 0)) ||
-                                       MovedTo(Coord.Create(7, 0));
-            var disableWhiteQueenside = MovedFrom(Coord.Create(4, 0)) || MovedFrom(Coord.Create(0, 0)) ||
-                                        MovedTo(Coord.Create(0, 0));
-            // Black rook squares: a8 (0,7), h8 (7,7); king square e8 (4,7)
-            var disableBlackKingside = MovedFrom(Coord.Create(4, 7)) || MovedFrom(Coord.Create(7, 7)) ||
-                                       MovedTo(Coord.Create(7, 7));
-            var disableBlackQueenside = MovedFrom(Coord.Create(4, 7)) || MovedFrom(Coord.Create(0, 7)) ||
-                                        MovedTo(Coord.Create(0, 7));
-
-            newState.WhiteCanCastleKingside &= !disableWhiteKingside;
-            newState.WhiteCanCastleQueenside &= !disableWhiteQueenside;
-            newState.BlackCanCastleKingside &= !disableBlackKingside;
-            newState.BlackCanCastleQueenside &= !disableBlackQueenside;
+            Console.WriteLine(
+                $"{_currentState.LastMove}, {_currentState.MoveNumber} {(_currentState.IsWhitesTurn ? "Black" : "White")}");
         }
     }
 }

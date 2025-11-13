@@ -69,7 +69,7 @@ namespace Tests {
 
         [Test]
         public void PawnPromotionMoves() {
-            List<Move> moves = MovesFor(PawnPromotionPosition, Piece.Pawn | Piece.White);
+            List<Move> moves = MovesFor("8/4P3/8/8/8/8/8/K7 w - - 0 1", Piece.Pawn | Piece.White);
             Assert.That(moves.Count, Is.EqualTo(4));
             Assert.That(moves.Select(m => m.PromotionPiece).Distinct().Count(), Is.EqualTo(4));
             Assert.That(moves.All(m =>

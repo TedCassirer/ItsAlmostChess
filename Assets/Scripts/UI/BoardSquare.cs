@@ -41,19 +41,19 @@ namespace UI {
             };
             _moveMarker.enabled = false;
         }
-        
+
         public void HighlightColor() {
             _square.sharedMaterial.color = _squareColors.highlighted;
         }
-        
+
         public void NormalColor() {
             _square.sharedMaterial.color = _squareColors.normal;
         }
-        
+
         public void MoveIndicatorColor() {
             _square.sharedMaterial.color = _squareColors.moveIndicator;
         }
-        
+
         public void ShowMoveMarker(bool on) => _moveMarker.enabled = on;
     }
 }

@@ -17,7 +17,7 @@ namespace Core.AI {
         };
 
         private const int MaxDepth = 4;
-        
+
         public Move? GetNextMove(Board board) {
             var moveGenerator = new MoveGenerator(board);
             List<Move> legalMoves = moveGenerator.LegalMoves();
@@ -58,9 +58,14 @@ namespace Core.AI {
 
             var movesGenerator = new MoveGenerator(board);
             List<Move> legalMoves = movesGenerator.LegalMoves().OrderBy(m => -m.CapturedPiece).ToList();
-            if (legalMoves.Count == 0)
-                // TODO: distinguish checkmate vs stalemate using board state (e.g., inCheck)
-                return -10_000; // Losing (no legal moves) from side-to-move perspective
+
+            if (legalMoves.Count == 0) {
+                if (movesGenerator.InCheck) {
+                    return -10_000; // Checkmate
+                }
+
+                return 0; // Stalemate
+            }
 
             var bestScore = int.MinValue;
             foreach (Move mv in legalMoves) {
@@ -68,9 +73,8 @@ namespace Core.AI {
                 var score = -MiniMax(board, depth + 1, -beta, -alpha);
                 board.UndoMove();
 
-                if (score > bestScore) bestScore = score;
-
-                if (score > alpha) alpha = score;
+                bestScore = Math.Max(bestScore, score);
+                alpha = Math.Max(alpha, score);
 
                 if (alpha >= beta) break;
             }

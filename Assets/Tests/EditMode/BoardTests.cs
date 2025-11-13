@@ -80,5 +80,20 @@ namespace Tests {
             var legalMoves = moveGenerator.LegalMoves();
             Assert.That(legalMoves.All(m => !m.IsCastling), Is.True);
         }
+        
+        [Test]
+        public void CanCaptureWithEnPassant() {
+            var board = new Board();
+            // Position where white can capture black pawn en passant
+            board.LoadFenPosition("8/3p/8/4P3/8/8/8/K7 b - - 0 1");
+            board.CommitMove(new Move(Coord.Parse("d7"), Coord.Parse("d5"))); // d7 to d5
+            var moveGenerator = new MoveGenerator(board);
+            var legalMoves = moveGenerator.LegalMoves();
+            var enPassantMove = legalMoves.FirstOrDefault(m => m.IsEnPassant);
+            Assert.That(enPassantMove, Is.Not.Null);
+            board.CommitMove(enPassantMove);
+            Assert.That(board.GetPiece(Coord.Create(3, 5)), Is.EqualTo(Piece.Pawn | Piece.White)); // e5
+            Assert.That(board.GetPiece(Coord.Create(3, 4)), Is.EqualTo(Piece.None)); // d5 captured
+        }
     }
 }

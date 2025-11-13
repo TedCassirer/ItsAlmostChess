@@ -41,7 +41,7 @@ namespace Core {
         private Coord _friendlyKing;
         private readonly List<Coord> _checkingPieces = new();
         private readonly HashSet<Coord> _squaresBlockingCheck = new();
-        private bool InCheck => _checkingPieces.Count > 0;
+        public bool InCheck => _checkingPieces.Count > 0;
         private bool InDoubleCheck => _checkingPieces.Count >= 2;
 
         private static readonly Direction[] Diagonals = {
@@ -162,6 +162,7 @@ namespace Core {
                 if (Piece.Color(_board.GetPiece(rightAttackSquare)) == _board.OpponentColor)
                     yield return rightAttackSquare;
             }
+
             if (_board.EnPassantTarget.HasValue && IsEnPassantPossible(square)) {
                 yield return _board.EnPassantTarget.Value;
             }
@@ -171,6 +172,7 @@ namespace Core {
             if (!_board.EnPassantTarget.HasValue) {
                 return false;
             }
+
             var forward = _board.IsWhitesTurn ? 1 : -1;
             if (pawnSquare.Rank + forward != _board.EnPassantTarget.Value.Rank) {
                 return false;
@@ -195,7 +197,8 @@ namespace Core {
             if (suspect.Equals(default)) {
                 // No other pieces on other side of pawns. We're good
                 return true;
-            } 
+            }
+
             if (suspect.Equals(pawnSquare) || suspect.Equals(opponentPawnSquare)) {
                 // This means another piece is blocking any potential checks between the pawns and the king. We're safe
                 return true;
@@ -276,7 +279,7 @@ namespace Core {
                 .Where(ts => _board.IsEmpty(ts) || Piece.IsColor(_board.GetPiece(ts), _board.OpponentColor))
                 .Where(sq => _attackedSquares[sq.File, sq.Rank] == 0);
 
-            if (_board.CanCastleKingSide) {
+            if (_board.CanCastleKingSide && !InCheck) {
                 var rightSquare = Coord.Create(square.File + 1, square.Rank);
                 var right2Square = Coord.Create(square.File + 2, square.Rank);
                 if (_board.IsEmpty(rightSquare) && _board.IsEmpty(right2Square) &&
@@ -285,7 +288,7 @@ namespace Core {
                     moves = moves.Append(right2Square);
             }
 
-            if (_board.CanCastleQueenSide) {
+            if (_board.CanCastleQueenSide && !InCheck) {
                 var leftSquare = Coord.Create(square.File - 1, square.Rank);
                 var left2Square = Coord.Create(square.File - 2, square.Rank);
                 var left3Square = Coord.Create(square.File - 3, square.Rank);
@@ -419,7 +422,9 @@ namespace Core {
         }
 
         public int CountMoves(int depth) {
-            if (depth == 0) return 1;
+            if (depth == 0) {
+                return 1;
+            }
             var total = 0;
             Refresh();
             foreach (Move move in LegalMoves()) {

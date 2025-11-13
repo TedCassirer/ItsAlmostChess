@@ -66,7 +66,7 @@ public class BoardUI : MonoBehaviour {
     void OnDisable() {
         DeleteBoardUI();
     }
-    
+
     public void UpdatePieces(Board board) {
         _board = board;
         for (var rank = 0; rank < 8; rank++)
@@ -87,7 +87,7 @@ public class BoardUI : MonoBehaviour {
         else {
             UpdatePieces(_board);
         }
-        
+
         BoardSquare fromSquare = _squares[move.From.File, move.From.Rank];
         BoardSquare toSquare = _squares[move.To.File, move.To.Rank];
         fromSquare.MoveIndicatorColor();
@@ -100,8 +100,9 @@ public class BoardUI : MonoBehaviour {
         SpriteRenderer fromPieceRenderer = _squarePieceRenderers[move.From.File, move.From.Rank];
         SpriteRenderer toPieceRenderer = _squarePieceRenderers[move.To.File, move.To.Rank];
         BoardSquare toSquare = _squares[move.To.File, move.To.Rank];
-        
-        Vector3 startPos = new Vector3(fromPieceRenderer.transform.position.x, fromPieceRenderer.transform.position.y, PieceDragDepth);
+
+        Vector3 startPos = new Vector3(fromPieceRenderer.transform.position.x, fromPieceRenderer.transform.position.y,
+            PieceDragDepth);
         Vector3 endPos = new Vector3(toSquare.transform.position.x, toSquare.transform.position.y, PieceDragDepth);
         animateRenderer.transform.position = startPos;
         animateRenderer.transform.localScale = Vector3.one / PieceScale;
@@ -114,9 +115,9 @@ public class BoardUI : MonoBehaviour {
             elapsed += Time.deltaTime;
             yield return null;
         }
-        
+
         toPieceRenderer.sprite = pieceTheme.GetPieceSprite(_board.GetPiece(move.To.File, move.To.Rank));
-        
+
         Destroy(animateGO);
     }
 
@@ -126,7 +127,7 @@ public class BoardUI : MonoBehaviour {
         UpdatePieces(_board);
         ResetSquares();
     }
-    
+
     // Update is called once per frame
     public void ResetSquares() {
         for (var rank = 0; rank < 8; rank++)
@@ -134,7 +135,7 @@ public class BoardUI : MonoBehaviour {
             _squares[file, rank].NormalColor();
             _squares[file, rank].ShowMoveMarker(false);
         }
-        
+
         if (_lastMove != null) {
             BoardSquare fromSquare = _squares[_lastMove.Value.From.File, _lastMove.Value.From.Rank];
             BoardSquare toSquare = _squares[_lastMove.Value.To.File, _lastMove.Value.To.Rank];
