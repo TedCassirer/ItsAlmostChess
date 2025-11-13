@@ -16,16 +16,10 @@ namespace Core.AI {
             { Piece.King, 9000 }
         };
 
-        private Board _board;
         private const int MaxDepth = 4;
-
-        public MiniMaxV2(Board board) {
-            _board = board;
-        }
-
-
-        public Move? GetNextMove() {
-            var moveGenerator = new MoveGenerator(_board);
+        
+        public Move? GetNextMove(Board board) {
+            var moveGenerator = new MoveGenerator(board);
             List<Move> legalMoves = moveGenerator.LegalMoves();
             if (legalMoves.Count == 0) return null;
 
@@ -35,7 +29,7 @@ namespace Core.AI {
             legalMoves.AsParallel()
                 .WithDegreeOfParallelism(Environment.ProcessorCount)
                 .Select(move => {
-                    Board clone = _board.Clone();
+                    Board clone = board.Clone();
                     clone.CommitMove(move);
                     var moveScore = -MiniMax(clone, 1);
                     return (move, moveScore);

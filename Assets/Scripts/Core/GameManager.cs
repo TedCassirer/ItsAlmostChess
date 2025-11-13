@@ -7,7 +7,7 @@ using UnityEngine;
 namespace Core {
     public class GameManager : MonoBehaviour {
         [SerializeField] private BoardUI boardUI;
-        private Board _board = new();
+        private Board _board;
         private MoveGenerator _moveGenerator;
         private Player _whitePlayer;
         [SerializeField] private bool blackIsAi;
@@ -18,8 +18,6 @@ namespace Core {
 
         public event Action<Move, bool> OnMoveExecuted; // (move, wasAi)
 
-        public bool BlackIsAI => blackIsAi;
-        public bool WhiteIsAI => whiteIsAi;
         public float AIMoveDelay => aiMoveDelay;
 
         // [SerializeField] private string StartingPosition = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
@@ -38,22 +36,26 @@ namespace Core {
             if (_board == null) {
                 _board = new Board();
             }
+
             if (_moveGenerator == null) {
                 _moveGenerator = new MoveGenerator(_board);
             }
+
             if (boardUI == null) {
                 boardUI = FindFirstObjectByType<BoardUI>();
             }
+
             boardUI.CreateBoardUI();
             _board.LoadFenPosition(startingPosition);
             _moveGenerator.Refresh();
             boardUI.UpdatePieces(_board);
+            OnMoveExecuted += (move, wasAi) => boardUI.OnMoveChosen(move, wasAi);
         }
 
         private void InitializePlayers() {
             ClearPlayers();
-            _whitePlayer = GetPlayer(WhiteIsAI);
-            _blackPlayer = GetPlayer(BlackIsAI);
+            _whitePlayer = CreatePlayer(whiteIsAi);
+            _blackPlayer = CreatePlayer(blackIsAi);
         }
 
         private void ClearPlayers() {
@@ -62,6 +64,7 @@ namespace Core {
                 Destroy(_whitePlayer);
                 _whitePlayer = null;
             }
+
             if (_blackPlayer != null) {
                 _blackPlayer.OnMoveChosen -= OnMoveChosen;
                 Destroy(_blackPlayer);
@@ -71,17 +74,10 @@ namespace Core {
 
         public void Start() {
             InitializePlayers();
-            StartTurn();
+            PlayerToMove.NotifyTurnToPlay();
             Debug.Log("Game started. White to move.");
         }
 
-        private void StartTurn() {
-            if (_board.IsWhitesTurn) {
-                _whitePlayer.NotifyTurnToPlay();
-            } else {
-                _blackPlayer.NotifyTurnToPlay();
-            }
-        }
 
         [ContextMenu("Reset Game")]
         public void ResetGame() {
@@ -91,7 +87,19 @@ namespace Core {
             _moveGenerator.Refresh();
             boardUI.Reset();
             InitializePlayers();
-            StartTurn();
+            PlayerToMove.NotifyTurnToPlay();
+        }
+
+        [ContextMenu("Undo Last Move")]
+        public void UndoLastMove() {
+            Debug.Log("Undoing last move...");
+            StopAllCoroutines();
+            _blackPlayer?.StopAllCoroutines();
+            _whitePlayer?.StopAllCoroutines();
+            _board.UndoMove();
+            _moveGenerator.Refresh();
+            boardUI.Reset();
+            DelayAction(1f, () => PlayerToMove.NotifyTurnToPlay());
         }
 
         public void Update() {
@@ -104,34 +112,56 @@ namespace Core {
             bool wasAi = PlayerToMove.IsAI;
             _board.CommitMove(move.Value);
             _moveGenerator.Refresh();
-            boardUI.OnMoveChosen(move.Value, wasAi);
             OnMoveExecuted?.Invoke(move.Value, wasAi);
             NextTurn();
         }
 
         private void NextTurn() {
             if (_whitePlayer.IsAI && _blackPlayer.IsAI) {
-                StartCoroutine(DelayedNextTurn(AIMoveDelay));
-            } else {
+                DelayAction(aiMoveDelay, () => PlayerToMove.NotifyTurnToPlay());
+            }
+            else {
                 PlayerToMove.NotifyTurnToPlay();
             }
         }
 
-        private IEnumerator DelayedNextTurn(float delay) {
-            yield return new WaitForSeconds(delay);
-            PlayerToMove.NotifyTurnToPlay();
+        private void DelayAction(float delay, Action action) {
+            StartCoroutine(DelayedActionCoroutine(delay, action));
+            return;
+
+            IEnumerator DelayedActionCoroutine(float delay, Action action) {
+                yield return new WaitForSeconds(delay);
+                action?.Invoke();
+            }
         }
 
-        private Player GetPlayer(bool isAi) {
+
+        private Player CreatePlayer(bool isAi) {
             Player player;
             if (isAi) {
                 player = transform.AddComponent<AIPlayer>();
-            } else {
+            }
+            else {
                 player = transform.AddComponent<Human>();
             }
+
             player.Init(_board);
             player.OnMoveChosen += OnMoveChosen;
+
             return player;
         }
+
+#if UNITY_EDITOR
+        private void OnValidate() {
+            if (!Application.isPlaying) return;
+            if (_board != null) {
+                StopAllCoroutines();
+                InitializePlayers();
+                if (PlayerToMove != null) {
+                    PlayerToMove.NotifyTurnToPlay();
+                }
+            }
+        }
+#endif
     }
 }

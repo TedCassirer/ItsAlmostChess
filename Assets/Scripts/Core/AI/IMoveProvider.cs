@@ -1,5 +1,5 @@
 namespace Core.AI {
     public interface IMoveProvider {
-        Move? GetNextMove();
+        Move? GetNextMove(Board board);
     }
 }

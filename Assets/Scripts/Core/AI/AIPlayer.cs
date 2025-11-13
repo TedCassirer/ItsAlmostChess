@@ -5,14 +5,34 @@ using UnityEngine;
 namespace Core.AI {
     public class AIPlayer : Player {
         private IMoveProvider _moveProvider;
+        [SerializeField] private AIKind aiKind = AIKind.MiniMax; // default
 
         protected override void OnInitialized() {
-            _moveProvider = new MiniMaxV2(Board);
+            ConfigureProvider();
+        }
+
+        private void ConfigureProvider() {
+            // choose implementation based on enum
+            _moveProvider = aiKind switch {
+                AIKind.Random => new RandomAI(),
+                AIKind.MiniMax => new MiniMaxV2(),
+                _ => throw new System.ArgumentOutOfRangeException()
+            };
         }
 
         protected override void OnTurnStarted() {
             StartCoroutine(ChooseNextMoveCoroutine());
         }
+
+#if UNITY_EDITOR
+        private void OnValidate() {
+            StopAllCoroutines();
+            ConfigureProvider();
+            if (Board != null && IsTurnActive) {
+                StartCoroutine(ChooseNextMoveCoroutine());
+            }
+        }
+#endif
 
         private IEnumerator ChooseNextMoveCoroutine() {
             Task<Move?> task = Task.Run(GetNextMove); // heavy work off-thread
@@ -30,7 +50,7 @@ namespace Core.AI {
         }
 
         private Move? GetNextMove() {
-            return _moveProvider.GetNextMove();
+            return _moveProvider.GetNextMove(Board.Clone());
         }
     }
 }

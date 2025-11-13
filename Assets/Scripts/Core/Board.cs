@@ -106,6 +106,9 @@ namespace Core {
         }
 
         public void UndoMove() {
+            if (_history.Count == 0) {
+                return;
+            }
             Move move = _currentState.LastMove;
             _squares[move.From.File, move.From.Rank] = _squares[move.To.File, move.To.Rank];
             _squares[move.To.File, move.To.Rank] = move.CapturedPiece;
