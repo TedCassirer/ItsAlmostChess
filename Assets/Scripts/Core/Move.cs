@@ -46,7 +46,7 @@ namespace Core {
         }
 
         public override string ToString() {
-            return $"{From}{To}";
+            return $"{From}{To}{Piece.TypeChar(PromotionPiece)}";
         }
 
         public bool Equals(Move other) {

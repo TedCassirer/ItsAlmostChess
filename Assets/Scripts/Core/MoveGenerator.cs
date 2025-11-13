@@ -186,7 +186,7 @@ namespace Core {
                 return true;
             }
             // King might be in check after capturing. 
-            
+
             // First check if there is another piece between the King and pawns
             var dFile = pawnSquare.File - _friendlyKing.File;
             var dir = new Direction(Math.Clamp(dFile, -1, 1), 0);
@@ -255,10 +255,13 @@ namespace Core {
         }
 
         private IEnumerable<Coord> GenerateSlidingMoves(Coord from, IEnumerable<Direction> dirs) {
-            foreach (Direction dir in dirs)
-            foreach (Coord coord in MovesIncludingCapturesInDirection(from, dir))
-                if (!InCheck || _squaresBlockingCheck.Contains(coord))
-                    yield return coord;
+            foreach (Direction dir in dirs) {
+                foreach (Coord coord in MovesIncludingCapturesInDirection(from, dir)) {
+                    if (!InCheck || _squaresBlockingCheck.Contains(coord)) {
+                        yield return coord;
+                    }
+                }
+            }
         }
 
         private IEnumerable<Coord> GenerateKingMoves(Coord square) {
@@ -425,6 +428,7 @@ namespace Core {
             if (depth == 0) {
                 return 1;
             }
+
             var total = 0;
             Refresh();
             foreach (Move move in LegalMoves()) {
@@ -446,15 +450,26 @@ namespace Core {
             return false;
         }
 
-        private IEnumerable<Coord> MovesIncludingCapturesInDirection(Coord square, Direction direction,
-            bool bothColors = false) {
+        private IEnumerable<Coord> MovesIncludingCapturesInDirection(Coord square, Direction direction) {
             foreach (Coord coord in direction.MoveToEnd(square)) {
                 var targetPiece = _board.GetPiece(coord);
                 if (targetPiece == Piece.None) {
                     yield return coord;
                 }
                 else {
-                    if (bothColors || Piece.IsColor(targetPiece, _board.OpponentColor)) yield return coord;
+                    if (Piece.IsColor(targetPiece, _board.OpponentColor)) {
+                        yield return coord;
+                    }
+
+                    yield break;
+                }
+            }
+        }
+
+        private IEnumerable<Coord> ThreatsInDirection(Coord square, Direction direction) {
+            foreach (Coord coord in direction.MoveToEnd(square)) {
+                yield return coord;
+                if (!coord.Equals(_friendlyKing) && _board.GetPiece(coord) != Piece.None) {
                     yield break;
                 }
             }
@@ -472,15 +487,15 @@ namespace Core {
         }
 
         private IEnumerable<Coord> GetBishopThreats(Coord square) {
-            return Diagonals.SelectMany(d => MovesIncludingCapturesInDirection(square, d, true));
+            return Diagonals.SelectMany(d => ThreatsInDirection(square, d));
         }
 
         private IEnumerable<Coord> GetRookThreats(Coord square) {
-            return Cardinals.SelectMany(d => MovesIncludingCapturesInDirection(square, d, true));
+            return Cardinals.SelectMany(d => ThreatsInDirection(square, d));
         }
 
         private IEnumerable<Coord> GetQueenThreats(Coord square) {
-            return QueenDirections.SelectMany(d => MovesIncludingCapturesInDirection(square, d, true));
+            return QueenDirections.SelectMany(d => ThreatsInDirection(square, d));
         }
     }
 }

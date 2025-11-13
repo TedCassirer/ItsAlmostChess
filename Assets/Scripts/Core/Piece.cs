@@ -54,5 +54,20 @@ namespace Core {
                     throw new Exception("Unknown piece symbol " + symbol);
             }
         }
+
+        public static string TypeChar(int promotionPiece) {
+            switch (Type(promotionPiece)) {
+                case Queen:
+                    return "q";
+                case Rook:
+                    return "r";
+                case Bishop:
+                    return "b";
+                case Knight:
+                    return "n";
+                default:
+                    return "";
+            }
+        }
     }
 }

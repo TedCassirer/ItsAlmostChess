@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Core;
 using NUnit.Framework;
 
@@ -123,6 +125,15 @@ namespace Tests {
             Assert.That(moves.Count(m => m.IsEnPassant), Is.EqualTo(1));
         }
         
+        
+        // Pawn on c5. King on c4. Pawn is protected by queen from different locations
+        [TestCase("8/2q5/8/2p5/2K5/8/8/8 w - - 0 1")]
+        [TestCase("8/8/8/2p5/2K5/8/2q5/8 w - - 0 1")] // Protects pawn through the king
+        public void CantCaptureIntoCheck(string fen) {
+            List<Move> moves = MovesFor(fen, Piece.King | Piece.White);
+            Assert.That(moves.All(m => !m.To.Equals(Coord.Parse("c5"))));
+        }
+        
         [TestCase(1, 20)]
         [TestCase(2, 400)]
         [TestCase(3, 8_902)]
@@ -150,8 +161,16 @@ namespace Tests {
             // https://www.chessprogramming.org/Perft_Results#Position_5
             const string position5Perft = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
             Load(position5Perft);
-            var moveCount = generator.CountMoves(depth);
-            Assert.That(moveCount, Is.EqualTo(expectedMoves));
+            List<Move> legalMoves = generator.LegalMoves();
+            var totalMoveCount = 0;
+            foreach (Move move in legalMoves) {
+                board.CommitMove(move);
+                var perft = generator.CountMoves(depth - 1);
+                board.UndoMove();
+                Console.WriteLine($"{move}: {perft}");
+                totalMoveCount += perft;
+            }
+            Assert.That(totalMoveCount, Is.EqualTo(expectedMoves));
         }
     }
 }
