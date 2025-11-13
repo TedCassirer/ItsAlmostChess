@@ -1,93 +1,90 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Random = System.Random;
+using UnityEngine;
 
 namespace Core.AI {
     public class MiniMaxV2 : IMoveProvider {
-        private static readonly Random _random = new();
+        private readonly int _maxDepth;
+        private readonly MoveOrderer _moveOrderer;
+        private readonly BoardEvaluator _boardEvaluator;
+        private int _nodesSearched;
+        private const int NegInf = -1000000000;
+        private const int PosInf = 1000000000;
 
-        private static readonly Dictionary<int, int> PieceValues = new() {
-            { Piece.Pawn, 100 },
-            { Piece.Knight, 300 },
-            { Piece.Bishop, 300 },
-            { Piece.Rook, 500 },
-            { Piece.Queen, 900 },
-            { Piece.King, 9000 }
-        };
-
-        private const int MaxDepth = 4;
+        public MiniMaxV2(int maxDepth, BoardEvaluator boardEvaluator, MoveOrderer moveOrderer) {
+            _maxDepth = maxDepth;
+            _boardEvaluator = boardEvaluator;
+            _moveOrderer = moveOrderer;
+        }
 
         public Move? GetNextMove(Board board) {
+            DateTime startTime = DateTime.Now;
+
             var moveGenerator = new MoveGenerator(board);
             List<Move> legalMoves = moveGenerator.LegalMoves();
             if (legalMoves.Count == 0) return null;
-
-            var bestScore = int.MinValue;
             List<Move> bestMoves = new();
+            int bestScore = NegInf;
+            _nodesSearched = 0;
 
-            legalMoves.AsParallel()
-                .WithDegreeOfParallelism(Environment.ProcessorCount)
-                .Select(move => {
-                    Board clone = board.Clone();
-                    clone.CommitMove(move);
-                    var moveScore = -MiniMax(clone, 1);
-                    return (move, moveScore);
-                })
-                .AsSequential()
-                .ToList()
-                .ForEach(tuple => {
-                    (Move move, var moveScore) = tuple;
-                    if (moveScore > bestScore) {
-                        bestScore = moveScore;
-                        bestMoves.Clear();
-                        bestMoves.Add(move);
-                    }
-                    else if (moveScore == bestScore) {
-                        bestMoves.Add(move);
-                    }
-                });
+            legalMoves = legalMoves.ToList();
 
-
-            var randomIndex = _random.Next(bestMoves.Count);
-            return bestMoves[randomIndex];
-        }
-
-        private int MiniMax(Board board, int depth, int alpha = int.MinValue, int beta = int.MaxValue) {
-            if (depth == MaxDepth) return BoardEvaluation(board);
-
-            var movesGenerator = new MoveGenerator(board);
-            List<Move> legalMoves = movesGenerator.LegalMoves().OrderBy(m => -m.CapturedPiece).ToList();
-
-            if (legalMoves.Count == 0) {
-                if (movesGenerator.InCheck) {
-                    return -10_000; // Checkmate
-                }
-
-                return 0; // Stalemate
-            }
-
-            var bestScore = int.MinValue;
-            foreach (Move mv in legalMoves) {
-                board.CommitMove(mv);
-                var score = -MiniMax(board, depth + 1, -beta, -alpha);
+            foreach (Move move in legalMoves) {
+                board.CommitMove(move);
+                // Depth starts at 1 after making a move
+                int score = -Search(board, depth: 1, alpha: NegInf, beta: PosInf);
                 board.UndoMove();
 
-                bestScore = Math.Max(bestScore, score);
-                alpha = Math.Max(alpha, score);
-
-                if (alpha >= beta) break;
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestMoves.Clear();
+                    bestMoves.Add(move);
+                }
+                else if (score == bestScore) {
+                    bestMoves.Add(move);
+                }
             }
 
-            return bestScore;
+            var chosenMove = bestMoves[0]; // deterministic when tie
+            DateTime endTime = DateTime.Now;
+            TimeSpan duration = endTime - startTime;
+            Debug.Log($"MiniMaxV2 selected move in {duration.TotalMilliseconds} ms at depth {_maxDepth}. Nodes searched: {_nodesSearched}. Best score: {bestScore}");
+            return chosenMove;
         }
 
-        private int BoardEvaluation(Board board) {
-            var score = 0;
-            foreach ((var piece, Coord _) in board.GetPieceLocations())
-                score += PieceValues[Piece.Type(piece)] * (Piece.IsColor(piece, Piece.White) ? 1 : -1);
+        private int Search(Board board, int depth, int alpha, int beta) {
+            _nodesSearched++;
+            if (depth >= _maxDepth) {
+                return EvaluateForSideToMove(board);
+            }
 
-            return score * (board.IsWhitesTurn ? 1 : -1);
+            var movesGenerator = new MoveGenerator(board);
+            List<Move> legalMoves = movesGenerator.LegalMoves()
+                .OrderByDescending(_moveOrderer.ScoreMove)
+                .ToList();
+
+            if (legalMoves.Count == 0) {
+                return EvaluateForSideToMove(board);
+            }
+
+            int value = NegInf;
+            foreach (Move move in legalMoves) {
+                board.CommitMove(move);
+                int score = -Search(board, depth + 1, -beta, -alpha);
+                board.UndoMove();
+
+                if (score > value) value = score;
+                if (value > alpha) alpha = value;
+                if (alpha >= beta) break; // Alpha-beta cutoff
+            }
+            return value;
+        }
+
+        private int EvaluateForSideToMove(Board board) {
+            // Base evaluator returns (white material - black material).
+            int eval = _boardEvaluator.Evaluate(board);
+            return board.IsWhitesTurn ? eval : -eval; // orient to side to move
         }
     }
 }

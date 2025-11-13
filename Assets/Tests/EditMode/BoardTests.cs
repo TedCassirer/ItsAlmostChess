@@ -23,8 +23,8 @@ namespace Tests {
             var board = new Board();
             board.LoadFenPosition(StartingPosition);
             var from = Coord.Create(4, 1); // e2
-            var to = Coord.Create(4, 3);   // e4
-            var move = new Move(from, to);
+            var to = Coord.Create(4, 3); // e4
+            var move = new Move(from, to, Piece.Pawn | Piece.White);
             board.CommitMove(move);
             Assert.That(board.GetPiece(to), Is.EqualTo(Piece.Pawn | Piece.White));
             Assert.That(board.GetPiece(from), Is.EqualTo(Piece.None));
@@ -35,7 +35,7 @@ namespace Tests {
         public void UndoMove_PawnAdvance_RestoresBoardAndTurn() {
             var board = new Board();
             board.LoadFenPosition(StartingPosition);
-            var move = new Move(Coord.Create(4, 1), Coord.Create(4, 3)); // e2 -> e4
+            var move = new Move(Coord.Parse("e2"), Coord.Parse("e4"), Piece.Pawn | Piece.White);
             board.CommitMove(move);
             board.UndoMove();
             Assert.That(board.GetPiece(Coord.Create(4, 1)), Is.EqualTo(Piece.Pawn | Piece.White));
@@ -49,11 +49,13 @@ namespace Tests {
             board.LoadFenPosition(StartingPosition);
             // Manually clear squares between king and rook to allow castle (f1,g1)
             board.LoadFenPosition("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQK2R w KQkq - 0 1");
-            var move = Move.Castle(Coord.Create(4, 0), Coord.Create(6, 0)); // e1 -> g1
+            // e1 -> g1
+            var move = Move.Castle(Coord.Parse("e1"), Coord.Parse("g1"), Piece.White);
             board.CommitMove(move);
             Assert.That(board.GetPiece(Coord.Create(6, 0)), Is.EqualTo(Piece.King | Piece.White));
             Assert.That(board.GetPiece(Coord.Create(5, 0)), Is.EqualTo(Piece.Rook | Piece.White));
-            board.CommitMove(new Move(Coord.Create(0, 7), Coord.Create(0, 6))); // Black move to switch turn
+            board.CommitMove(new Move(Coord.Parse("a7"), Coord.Parse("a6"),
+                Piece.Pawn | Piece.Black)); // Black move to switch turn
             Assert.That(board.CanCastleKingSide, Is.False);
             Assert.That(board.CanCastleQueenSide, Is.False);
         }
@@ -62,7 +64,7 @@ namespace Tests {
         public void UndoMove_CastleKingside_RestoresKingRookAndRights() {
             var board = new Board();
             board.LoadFenPosition("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQK2R w KQkq - 0 1");
-            var move = Move.Castle(Coord.Create(4, 0), Coord.Create(6, 0));
+            var move = Move.Castle(Coord.Parse("e1"), Coord.Parse("g1"), Piece.White);
             board.CommitMove(move);
             board.UndoMove();
             Assert.That(board.GetPiece(Coord.Create(4, 0)), Is.EqualTo(Piece.King | Piece.White));
@@ -70,7 +72,7 @@ namespace Tests {
             Assert.That(board.CanCastleKingSide, Is.True);
             Assert.That(board.CanCastleQueenSide, Is.True);
         }
-        
+
         [Test]
         public void CantCastleThroughCheck() {
             var board = new Board();
@@ -80,13 +82,13 @@ namespace Tests {
             var legalMoves = moveGenerator.LegalMoves();
             Assert.That(legalMoves.All(m => !m.IsCastling), Is.True);
         }
-        
+
         [Test]
         public void CanCaptureWithEnPassant() {
             var board = new Board();
             // Position where white can capture black pawn en passant
             board.LoadFenPosition("8/3p/8/4P3/8/8/8/K7 b - - 0 1");
-            board.CommitMove(new Move(Coord.Parse("d7"), Coord.Parse("d5"))); // d7 to d5
+            board.CommitMove(new Move(Coord.Parse("d7"), Coord.Parse("d5"), Piece.Pawn | Piece.Black)); // d7 to d5
             var moveGenerator = new MoveGenerator(board);
             var legalMoves = moveGenerator.LegalMoves();
             var enPassantMove = legalMoves.FirstOrDefault(m => m.IsEnPassant);

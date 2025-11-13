@@ -4,8 +4,7 @@ using System.Linq;
 using Utils;
 
 namespace Core {
-    public struct Direction {
-        // CHANGED: was internal
+    public readonly struct Direction {
         private readonly int _dFile;
         private readonly int _dRank;
 
@@ -124,13 +123,13 @@ namespace Core {
         private Move CreateMove(Coord from, Coord to) {
             if (to.Equals(_board.EnPassantTarget) &&
                 Piece.Type(_board.GetPiece(from)) == Piece.Pawn)
-                return Move.EnPassantMove(from, to);
+                return Move.EnPassantMove(from, to, _board.ColorToMove);
 
             if (from.Equals(_friendlyKing) && Math.Abs(to.File - from.File) == 2)
                 // Castling move
-                return Move.Castle(from, to);
+                return Move.Castle(from, to, _board.ColorToMove);
 
-            return new Move(from, to, _board.GetPiece(to));
+            return new Move(from, to, movePiece: _board.GetPiece(from), capturedPiece: _board.GetPiece(to));
         }
 
         private IEnumerable<Coord> GeneratePawnMoves(Coord square) {

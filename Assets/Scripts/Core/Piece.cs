@@ -69,5 +69,17 @@ namespace Core {
                     return "";
             }
         }
+
+        public static int Value(int piece) {
+            return Type(piece) switch {
+                Pawn => 100,
+                Knight => 300,
+                Bishop => 300,
+                Rook => 500,
+                Queen => 900,
+                King => 0,
+                _ => 0
+            };
+        }
     }
 }

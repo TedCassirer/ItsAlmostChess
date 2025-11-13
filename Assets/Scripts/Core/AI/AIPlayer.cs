@@ -5,7 +5,8 @@ using UnityEngine;
 namespace Core.AI {
     public class AIPlayer : Player {
         private IMoveProvider _moveProvider;
-        [SerializeField] private AIKind aiKind = AIKind.MiniMax; // default
+        [SerializeField] private AIKind aiKind = AIKind.MiniMax;
+        [SerializeField] private int searchDepth = 4;
 
         protected override void OnInitialized() {
             ConfigureProvider();
@@ -15,7 +16,7 @@ namespace Core.AI {
             // choose implementation based on enum
             _moveProvider = aiKind switch {
                 AIKind.Random => new RandomAI(),
-                AIKind.MiniMax => new MiniMaxV2(),
+                AIKind.MiniMax => new MiniMaxV2(searchDepth, new BoardEvaluator(), new MoveOrderer()),
                 _ => throw new System.ArgumentOutOfRangeException()
             };
         }
